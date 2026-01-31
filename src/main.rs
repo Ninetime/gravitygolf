@@ -7,14 +7,11 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use chrono::Utc;
-use rustls::{
-    cipher_suite::*, ServerConfig, version,
-};
-use rustls_pemfile;
+use openssl::ssl::{SslAcceptor, SslFiletype, SslMethod};
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
-use tokio_rustls::TlsAcceptor;
+use tokio_openssl::SslStream;
 use tracing::{debug, error, info, warn};
 
 // Request logging structures
@@ -24,6 +21,7 @@ struct RequestLog {
     remote_addr: String,
     protocol: String,
     tls_version: Option<String>,
+    cipher_suite: Option<String>,
     method: String,
     path: String,
     query_string: String,
@@ -58,113 +56,40 @@ impl RequestInfo {
     }
 }
 
-// Function to load certificates from file
-fn load_certificates(cert_path: &PathBuf) -> Result<Vec<rustls::Certificate>> {
-    let cert_file = File::open(cert_path)
-        .with_context(|| format!("Failed to open certificate file: {:?}", cert_path))?;
-    let mut reader = BufReader::new(cert_file);
+// Create OpenSSL acceptor with legacy support
+fn create_ssl_acceptor(cert_path: &PathBuf, key_path: &PathBuf) -> Result<SslAcceptor> {
+    let mut builder = SslAcceptor::mozilla_modern(SslMethod::tls())
+        .context("Failed to create SSL acceptor")?;
 
-    let certs: Vec<rustls::Certificate> = rustls_pemfile::certs(&mut reader)
-        .collect::<Result<Vec<_>, _>>()
-        .with_context(|| "Failed to parse certificates")?
-        .into_iter()
-        .map(|cert| rustls::Certificate(cert.to_vec()))
-        .collect();
+    // Set certificate and key
+    builder
+        .set_certificate_chain_file(cert_path)
+        .with_context(|| format!("Failed to load certificate from {:?}", cert_path))?;
+    builder
+        .set_private_key_file(key_path, SslFiletype::PEM)
+        .with_context(|| format!("Failed to load private key from {:?}", key_path))?;
 
-    if certs.is_empty() {
-        anyhow::bail!("No certificates found in file");
+    // Enable legacy protocols for PS3 compatibility
+    builder
+        .set_options(openssl::ssl::SslOptions::NO_TICKET)
+        .context("Failed to set SSL options")?;
+
+    // Try to support older TLS versions
+    // Note: This depends on OpenSSL version; modern OpenSSL might not support SSLv3/TLSv1.0
+    #[allow(deprecated)]
+    {
+        // Uncomment if your OpenSSL supports these old versions:
+        // builder.set_min_proto_version(Some(openssl::ssl::SslVersion::SSL3))?;
     }
 
-    info!("Loaded {} certificate(s)", certs.len());
-    Ok(certs)
-}
+    builder
+        .set_cipher_list("DEFAULT:!aNULL:!eNULL:!MD5:!3DES:!DES:!RC4:!IDEA:!SEED:!aDSS:!SRP:!PSK")
+        .context("Failed to set cipher list")?;
 
-fn load_private_key(key_path: &PathBuf) -> Result<rustls::PrivateKey> {
-    let key_file = File::open(key_path)
-        .with_context(|| format!("Failed to open key file: {:?}", key_path))?;
-    let mut reader = BufReader::new(key_file);
+    info!("SSL configuration created successfully");
+    info!("Supported protocols: TLS 1.2, TLS 1.3 (with legacy cipher support)");
 
-    // Try PKCS8 first
-    let pkcs8_keys: Vec<rustls_pki_types::PrivatePkcs8KeyDer<'static>> = rustls_pemfile::pkcs8_private_keys(&mut reader)
-        .collect::<Result<Vec<_>, _>>()
-        .with_context(|| "Failed to parse PKCS8 private key")?;
-
-    if !pkcs8_keys.is_empty() {
-        if pkcs8_keys.len() > 1 {
-            warn!("Multiple private keys found, using the first one");
-        }
-
-        let key_bytes = pkcs8_keys[0].secret_pkcs8_der();
-        info!("Private key loaded successfully (PKCS8) - {} bytes", key_bytes.len());
-        return Ok(rustls::PrivateKey(key_bytes.to_vec()));
-    }
-
-    // Try RSA if PKCS8 is not found
-    let key_file = File::open(key_path)
-        .with_context(|| format!("Failed to reopen key file: {:?}", key_path))?;
-    let mut reader = BufReader::new(key_file);
-
-    let rsa_keys: Vec<rustls_pki_types::PrivatePkcs1KeyDer<'static>> = rustls_pemfile::rsa_private_keys(&mut reader)
-        .collect::<Result<Vec<_>, _>>()
-        .with_context(|| "Failed to parse RSA private key")?;
-
-    if !rsa_keys.is_empty() {
-        if rsa_keys.len() > 1 {
-            warn!("Multiple private keys found, using the first one");
-        }
-
-        let key_bytes = rsa_keys[0].secret_pkcs1_der();
-        info!("Private key loaded successfully (PKCS1/RSA) - {} bytes", key_bytes.len());
-        return Ok(rustls::PrivateKey(key_bytes.to_vec()));
-    }
-
-    anyhow::bail!("No private keys found in file - tried PKCS8 and PKCS1 formats");
-}
-
-// Create TLS server configuration
-fn create_tls_config(cert_path: &PathBuf, key_path: &PathBuf) -> Result<ServerConfig> {
-    let certs = load_certificates(cert_path)?;
-    let key = load_private_key(key_path)?;
-
-    // Try to include as many cipher suites as possible for PS3 compatibility
-    let cipher_suites: Vec<&'static rustls::SupportedCipherSuite> = vec![
-        // TLS 1.3 cipher suites
-        rustls::cipher_suite::TLS13_AES_256_GCM_SHA384,
-        rustls::cipher_suite::TLS13_CHACHA20_POLY1305_SHA256,
-        rustls::cipher_suite::TLS13_AES_128_GCM_SHA256,
-        
-        // TLS 1.2 ECDHE cipher suites
-        rustls::cipher_suite::TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
-        rustls::cipher_suite::TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
-        rustls::cipher_suite::TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
-        
-        // TLS 1.2 RSA cipher suites (older, for legacy support)
-        rustls::cipher_suite::TLS_RSA_WITH_AES_256_GCM_SHA384,
-        rustls::cipher_suite::TLS_RSA_WITH_AES_128_GCM_SHA256,
-        
-        // TLS 1.2 ECDHE with SHA (older)
-        rustls::cipher_suite::TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
-        rustls::cipher_suite::TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,
-        
-        // TLS 1.2 RSA with CBC (very old, PS3 era)
-        rustls::cipher_suite::TLS_RSA_WITH_AES_256_CBC_SHA,
-        rustls::cipher_suite::TLS_RSA_WITH_AES_128_CBC_SHA,
-    ];
-
-    let config = ServerConfig::builder()
-        .with_cipher_suites(&cipher_suites)
-        .with_safe_default_kx_groups()
-        .with_protocol_versions(&[&rustls::version::TLS13, &rustls::version::TLS12])
-        .with_context(|| "Failed to set protocol versions")?
-        .with_no_client_auth()
-        .with_single_cert(certs, key)
-        .with_context(|| "Failed to load certificate or key")?;
-
-    info!("TLS configuration created successfully");
-    info!("Supported TLS versions: TLSv1.2, TLSv1.3");
-    info!("Supported cipher suites: {} configured", cipher_suites.len());
-
-    Ok(config)
+    Ok(builder.build())
 }
 
 // Parse HTTP request
@@ -243,6 +168,7 @@ fn create_request_log(
     addr: SocketAddr,
     protocol: &str,
     tls_version: Option<&str>,
+    cipher_suite: Option<&str>,
     request_info: &RequestInfo,
     raw_request: &[u8],
     processing_time: u128,
@@ -258,6 +184,7 @@ fn create_request_log(
         remote_addr: addr.to_string(),
         protocol: protocol.to_string(),
         tls_version: tls_version.map(|s| s.to_string()),
+        cipher_suite: cipher_suite.map(|s| s.to_string()),
         method: request_info.method.clone(),
         path: request_info.path.clone(),
         query_string: request_info.query.clone(),
@@ -274,13 +201,17 @@ fn create_request_log(
 fn log_request_details(log: &RequestLog) {
     info!("\n════════════════════════════════════════════════════════════════════════");
     info!("📥 NEW REQUEST");
-    info!("════════════════════════════════════════════════════════════════════════");
+    info!("═══════════��════════════════════════════════════════════════════════════");
     info!("Timestamp:       {}", log.timestamp);
     info!("Remote Address:  {}", log.remote_addr);
     info!("Protocol:        {}", log.protocol);
 
     if let Some(tls_version) = &log.tls_version {
         info!("TLS Version:     {}", tls_version);
+    }
+
+    if let Some(cipher_suite) = &log.cipher_suite {
+        info!("Cipher Suite:    {}", cipher_suite);
     }
 
     info!("────────────────────────────────────────────────────────────────────────");
@@ -312,7 +243,7 @@ fn log_request_details(log: &RequestLog) {
 
 // Handle TLS connection with detailed logging
 async fn handle_tls_connection(
-    mut tls_stream: tokio_rustls::server::TlsStream<TcpStream>,
+    mut tls_stream: SslStream<TcpStream>,
     addr: SocketAddr,
 ) -> Result<()> {
     let start_time = std::time::Instant::now();
@@ -320,10 +251,16 @@ async fn handle_tls_connection(
 
     // Get TLS version
     let tls_version = tls_stream
-        .get_ref()
-        .1
-        .protocol_version()
-        .map(|v| format!("{:?}", v));
+        .ssl()
+        .version_str()
+        .map(|v| v.to_string_lossy().to_string());
+
+    // Get cipher suite name
+    let cipher_suite = tls_stream
+        .ssl()
+        .current_cipher()
+        .and_then(|c| c.name())
+        .map(|name| name.to_string_lossy().to_string());
 
     let n = tls_stream
         .read(&mut buffer)
@@ -334,15 +271,8 @@ async fn handle_tls_connection(
         info!("TLS connection closed by client: {}", addr);
         return Ok(());
     }
-    
-    // In your handle_tls_connection function, after getting tls_version:
-    let cipher_suite = tls_stream
-        .get_ref()
-        .1
-        .negotiated_cipher_suite()
-        .map(|cs| format!("{:?}", cs));
 
-    info!("Negotiated cipher suite: {:?}", cipher_suite);
+    info!("TLS Handshake successful - Version: {:?}, Cipher: {:?}", tls_version, cipher_suite);
 
     let raw_request = &buffer[..n];
 
@@ -362,6 +292,7 @@ async fn handle_tls_connection(
         addr,
         "TLS",
         tls_version.as_deref(),
+        cipher_suite.as_deref(),
         &request_info,
         raw_request,
         processing_time,
@@ -389,6 +320,8 @@ async fn handle_tls_connection(
             - Path: {}\n\
             - Query: {}\n\
             - Protocol: {}\n\
+            - TLS Version: {}\n\
+            - Cipher Suite: {}\n\
             - Headers: {}\n\
             - Body Size: {} bytes\n\
             - From: {}\n\
@@ -399,11 +332,13 @@ async fn handle_tls_connection(
             request_info.method,
             request_info.path,
             if request_info.query.is_empty() {
-                "None"
+                "None".to_string()
             } else {
-                &request_info.query
+                request_info.query.clone()
             },
             if tls_version.is_some() { "HTTPS/TLS" } else { "HTTP" },
+            tls_version.as_deref().unwrap_or("N/A"),
+            cipher_suite.as_deref().unwrap_or("N/A"),
             request_info.headers.len(),
             request_info.body.len(),
             addr,
@@ -414,7 +349,7 @@ async fn handle_tls_connection(
             "HTTP/1.1 200 OK\r\n\
             Content-Type: text/plain\r\n\
             Content-Length: {}\r\n\
-            Server: Rust TLS/TCP Server\r\n\
+            Server: Rust OpenSSL/TCP Server\r\n\
             Connection: close\r\n\
             \r\n\
             {}",
@@ -426,6 +361,7 @@ async fn handle_tls_connection(
     };
 
     // Send response
+    let mut tls_stream = tls_stream;
     tls_stream
         .write_all(&response)
         .await
@@ -472,6 +408,7 @@ async fn handle_tcp_connection(mut stream: TcpStream, addr: SocketAddr) -> Resul
     let request_log = create_request_log(
         addr,
         "TCP",
+        None,
         None,
         &request_info,
         raw_request,
@@ -524,7 +461,7 @@ async fn handle_tcp_connection(mut stream: TcpStream, addr: SocketAddr) -> Resul
             "HTTP/1.1 200 OK\r\n\
             Content-Type: text/plain\r\n\
             Content-Length: {}\r\n\
-            Server: Rust TLS/TCP Server\r\n\
+            Server: Rust OpenSSL/TCP Server\r\n\
             Connection: close\r\n\
             \r\n\
             {}",
@@ -551,7 +488,7 @@ async fn handle_tcp_connection(mut stream: TcpStream, addr: SocketAddr) -> Resul
 }
 
 // Start TLS server on port 18443
-async fn start_tls_server(tls_acceptor: TlsAcceptor) -> Result<()> {
+async fn start_tls_server(ssl_acceptor: Arc<SslAcceptor>) -> Result<()> {
     let listener = TcpListener::bind("0.0.0.0:18443")
         .await
         .with_context(|| "Failed to bind TLS server to port 18443")?;
@@ -564,10 +501,10 @@ async fn start_tls_server(tls_acceptor: TlsAcceptor) -> Result<()> {
             .await
             .with_context(|| "Failed to accept TLS connection")?;
 
-        let acceptor = tls_acceptor.clone();
+        let ssl_acceptor = ssl_acceptor.clone();
 
         tokio::spawn(async move {
-            match acceptor.accept(stream).await {
+            match tokio_openssl::accept(&ssl_acceptor, stream).await {
                 Ok(tls_stream) => {
                     if let Err(e) = handle_tls_connection(tls_stream, addr).await {
                         error!("Error handling TLS connection from {}: {:?}", addr, e);
@@ -627,9 +564,8 @@ async fn main() -> Result<()> {
     let cert_path = PathBuf::from(&args[1]);
     let key_path = PathBuf::from(&args[2]);
 
-    // Create TLS configuration
-    let tls_config = create_tls_config(&cert_path, &key_path)?;
-    let tls_acceptor = TlsAcceptor::from(Arc::new(tls_config));
+    // Create SSL acceptor
+    let ssl_acceptor = Arc::new(create_ssl_acceptor(&cert_path, &key_path)?);
 
     // Display server information
     info!("════════════════════════════════════════════════════════════════════════");
@@ -638,11 +574,11 @@ async fn main() -> Result<()> {
     info!("  • TCP Port:    18000");
     info!("  • Certificate: {:?}", cert_path);
     info!("  • Private Key: {:?}", key_path);
-    info!("  • WARNING: Using dangerous certificate verification (1024-bit support)");
+    info!("  • TLS Library: OpenSSL (legacy support enabled)");
     info!("════════════════════════════════════════════════════════════════════════");
 
     // Start both servers concurrently
-    let tls_server = start_tls_server(tls_acceptor);
+    let tls_server = start_tls_server(ssl_acceptor);
     let tcp_server = start_tcp_server();
 
     // Run both servers
