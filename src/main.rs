@@ -1,18 +1,19 @@
 use std::collections::HashMap;
-use std::fs::File;
-use std::io::BufReader;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::fs;
 
 use anyhow::{Context, Result};
 use chrono::Utc;
-use openssl::ssl::{SslAcceptor, SslFiletype, SslMethod};
+use native_tls::TlsAcceptor;
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
-use tokio_openssl::SslStream;
-use tracing::{debug, error, info, warn};
+use tokio_native_tls::TlsStream;
+use tracing::{debug, error, info};
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::util::SubscriberInitExt;
 
 // Request logging structures
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -56,40 +57,24 @@ impl RequestInfo {
     }
 }
 
-// Create OpenSSL acceptor with legacy support
-fn create_ssl_acceptor(cert_path: &PathBuf, key_path: &PathBuf) -> Result<SslAcceptor> {
-    let mut builder = SslAcceptor::mozilla_modern(SslMethod::tls())
-        .context("Failed to create SSL acceptor")?;
+// Create TLS acceptor with native-tls
+fn create_tls_acceptor(cert_path: &PathBuf, key_path: &PathBuf) -> Result<TlsAcceptor> {
+    // Read certificate and key files
+    let cert_data = fs::read(cert_path)
+        .with_context(|| format!("Failed to read certificate from {:?}", cert_path))?;
+    let key_data = fs::read(key_path)
+        .with_context(|| format!("Failed to read key from {:?}", key_path))?;
 
-    // Set certificate and key
-    builder
-        .set_certificate_chain_file(cert_path)
-        .with_context(|| format!("Failed to load certificate from {:?}", cert_path))?;
-    builder
-        .set_private_key_file(key_path, SslFiletype::PEM)
-        .with_context(|| format!("Failed to load private key from {:?}", key_path))?;
+    // Create identity from cert and key
+    let identity = native_tls::Identity::from_pkcs8(&cert_data, &key_data)
+        .context("Failed to create TLS identity from certificate and key")?;
 
-    // Enable legacy protocols for PS3 compatibility
-    builder
-        .set_options(openssl::ssl::SslOptions::NO_TICKET)
-        .context("Failed to set SSL options")?;
+    // Create acceptor
+    let acceptor = TlsAcceptor::new(identity)
+        .context("Failed to create TLS acceptor")?;
 
-    // Try to support older TLS versions
-    // Note: This depends on OpenSSL version; modern OpenSSL might not support SSLv3/TLSv1.0
-    #[allow(deprecated)]
-    {
-        // Uncomment if your OpenSSL supports these old versions:
-        // builder.set_min_proto_version(Some(openssl::ssl::SslVersion::SSL3))?;
-    }
-
-    builder
-        .set_cipher_list("DEFAULT:!aNULL:!eNULL:!MD5:!3DES:!DES:!RC4:!IDEA:!SEED:!aDSS:!SRP:!PSK")
-        .context("Failed to set cipher list")?;
-
-    info!("SSL configuration created successfully");
-    info!("Supported protocols: TLS 1.2, TLS 1.3 (with legacy cipher support)");
-
-    Ok(builder.build())
+    info!("TLS acceptor created successfully");
+    Ok(acceptor)
 }
 
 // Parse HTTP request
@@ -201,7 +186,7 @@ fn create_request_log(
 fn log_request_details(log: &RequestLog) {
     info!("\n════════════════════════════════════════════════════════════════════════");
     info!("📥 NEW REQUEST");
-    info!("═══════════��════════════════════════════════════════════════════════════");
+    info!("════════════════════════════════════════════════════════════════════════");
     info!("Timestamp:       {}", log.timestamp);
     info!("Remote Address:  {}", log.remote_addr);
     info!("Protocol:        {}", log.protocol);
@@ -221,7 +206,7 @@ fn log_request_details(log: &RequestLog) {
         info!("Query String:    ?{}", log.query_string);
     }
 
-    info!("────────────────────────────────────────────────────────────────────────");
+    info!("──────────────────────────────────��─────────────────────────────────────");
 
     if !log.headers.is_empty() {
         info!("Headers:");
@@ -243,24 +228,16 @@ fn log_request_details(log: &RequestLog) {
 
 // Handle TLS connection with detailed logging
 async fn handle_tls_connection(
-    mut tls_stream: SslStream<TcpStream>,
+    mut tls_stream: TlsStream<TcpStream>,
     addr: SocketAddr,
 ) -> Result<()> {
     let start_time = std::time::Instant::now();
     let mut buffer = [0u8; 8192];
 
-    // Get TLS version
-    let tls_version = tls_stream
-        .ssl()
-        .version_str()
-        .map(|v| v.to_string_lossy().to_string());
-
-    // Get cipher suite name
-    let cipher_suite = tls_stream
-        .ssl()
-        .current_cipher()
-        .and_then(|c| c.name())
-        .map(|name| name.to_string_lossy().to_string());
+    // Note: native-tls doesn't expose TLS version and cipher suite details
+    // This is a limitation of the native-tls library on Windows (uses Schannel)
+    let tls_version = Some("TLS 1.2+ (Windows Schannel)".to_string());
+    let cipher_suite = None;
 
     let n = tls_stream
         .read(&mut buffer)
@@ -272,7 +249,7 @@ async fn handle_tls_connection(
         return Ok(());
     }
 
-    info!("TLS Handshake successful - Version: {:?}, Cipher: {:?}", tls_version, cipher_suite);
+    info!("TLS Handshake successful from {}", addr);
 
     let raw_request = &buffer[..n];
 
@@ -321,7 +298,6 @@ async fn handle_tls_connection(
             - Query: {}\n\
             - Protocol: {}\n\
             - TLS Version: {}\n\
-            - Cipher Suite: {}\n\
             - Headers: {}\n\
             - Body Size: {} bytes\n\
             - From: {}\n\
@@ -338,7 +314,6 @@ async fn handle_tls_connection(
             },
             if tls_version.is_some() { "HTTPS/TLS" } else { "HTTP" },
             tls_version.as_deref().unwrap_or("N/A"),
-            cipher_suite.as_deref().unwrap_or("N/A"),
             request_info.headers.len(),
             request_info.body.len(),
             addr,
@@ -349,7 +324,7 @@ async fn handle_tls_connection(
             "HTTP/1.1 200 OK\r\n\
             Content-Type: text/plain\r\n\
             Content-Length: {}\r\n\
-            Server: Rust OpenSSL/TCP Server\r\n\
+            Server: Rust TLS/TCP Server\r\n\
             Connection: close\r\n\
             \r\n\
             {}",
@@ -361,7 +336,6 @@ async fn handle_tls_connection(
     };
 
     // Send response
-    let mut tls_stream = tls_stream;
     tls_stream
         .write_all(&response)
         .await
@@ -461,7 +435,7 @@ async fn handle_tcp_connection(mut stream: TcpStream, addr: SocketAddr) -> Resul
             "HTTP/1.1 200 OK\r\n\
             Content-Type: text/plain\r\n\
             Content-Length: {}\r\n\
-            Server: Rust OpenSSL/TCP Server\r\n\
+            Server: Rust TLS/TCP Server\r\n\
             Connection: close\r\n\
             \r\n\
             {}",
@@ -488,7 +462,7 @@ async fn handle_tcp_connection(mut stream: TcpStream, addr: SocketAddr) -> Resul
 }
 
 // Start TLS server on port 18443
-async fn start_tls_server(ssl_acceptor: Arc<SslAcceptor>) -> Result<()> {
+async fn start_tls_server(tls_acceptor: Arc<TlsAcceptor>) -> Result<()> {
     let listener = TcpListener::bind("0.0.0.0:18443")
         .await
         .with_context(|| "Failed to bind TLS server to port 18443")?;
@@ -501,10 +475,10 @@ async fn start_tls_server(ssl_acceptor: Arc<SslAcceptor>) -> Result<()> {
             .await
             .with_context(|| "Failed to accept TLS connection")?;
 
-        let ssl_acceptor = ssl_acceptor.clone();
+        let acceptor = tls_acceptor.clone();
 
         tokio::spawn(async move {
-            match tokio_openssl::accept(&ssl_acceptor, stream).await {
+            match acceptor.accept_async(stream).await {
                 Ok(tls_stream) => {
                     if let Err(e) = handle_tls_connection(tls_stream, addr).await {
                         error!("Error handling TLS connection from {}: {:?}", addr, e);
@@ -542,12 +516,30 @@ async fn start_tcp_server() -> Result<()> {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Initialize logging with colors and timestamps
-    tracing_subscriber::fmt()
+    // Create/open a log file
+    let log_file = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open("gravitygolf.log")
+        .context("Failed to create log file")?;
+
+    // Initialize logging with both console and file output
+    let file_layer = tracing_subscriber::fmt::layer()
         .with_target(true)
         .with_timer(tracing_subscriber::fmt::time::UtcTime::rfc_3339())
         .with_level(true)
-        .with_ansi(true)
+        .with_ansi(false)  // No colors in file
+        .with_writer(Arc::new(log_file));
+
+    let console_layer = tracing_subscriber::fmt::layer()
+        .with_target(true)
+        .with_timer(tracing_subscriber::fmt::time::UtcTime::rfc_3339())
+        .with_level(true)
+        .with_ansi(true);  // Colors in console
+
+    tracing_subscriber::registry()
+        .with(console_layer)
+        .with(file_layer)
         .init();
 
     info!("🚀 Starting gravitygolf server...");
@@ -564,8 +556,8 @@ async fn main() -> Result<()> {
     let cert_path = PathBuf::from(&args[1]);
     let key_path = PathBuf::from(&args[2]);
 
-    // Create SSL acceptor
-    let ssl_acceptor = Arc::new(create_ssl_acceptor(&cert_path, &key_path)?);
+    // Create TLS acceptor
+    let tls_acceptor = Arc::new(create_tls_acceptor(&cert_path, &key_path)?);
 
     // Display server information
     info!("════════════════════════════════════════════════════════════════════════");
@@ -574,11 +566,12 @@ async fn main() -> Result<()> {
     info!("  • TCP Port:    18000");
     info!("  • Certificate: {:?}", cert_path);
     info!("  • Private Key: {:?}", key_path);
-    info!("  • TLS Library: OpenSSL (legacy support enabled)");
+    info!("  • TLS Library: native-tls (Windows Schannel)");
+    info!("  • Log File:    gravitygolf.log");
     info!("════════════════════════════════════════════════════════════════════════");
 
     // Start both servers concurrently
-    let tls_server = start_tls_server(ssl_acceptor);
+    let tls_server = start_tls_server(tls_acceptor);
     let tcp_server = start_tcp_server();
 
     // Run both servers

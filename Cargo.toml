@@ -5,8 +5,8 @@ edition = "2021"
 
 [dependencies]
 tokio = { version = "1.37", features = ["full"] }
-openssl = "0.10"
-tokio-openssl = "0.6"
+native-tls = "0.2"
+tokio-native-tls = "0.3"
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter", "time"] }
 anyhow = "1.0.86"
