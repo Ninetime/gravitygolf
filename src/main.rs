@@ -237,7 +237,7 @@ async fn handle_tls_connection(
     // Note: native-tls doesn't expose TLS version and cipher suite details
     // This is a limitation of the native-tls library on Windows (uses Schannel)
     let tls_version = Some("TLS 1.2+ (Windows Schannel)".to_string());
-    let cipher_suite = None;
+    let cipher_suite: Option<String> = None;
 
     let n = tls_stream
         .read(&mut buffer)
@@ -478,7 +478,8 @@ async fn start_tls_server(tls_acceptor: Arc<TlsAcceptor>) -> Result<()> {
         let acceptor = tls_acceptor.clone();
 
         tokio::spawn(async move {
-            match acceptor.accept_async(stream).await {
+            let tokio_acceptor = tokio_native_tls::TlsAcceptor::from(acceptor.as_ref().clone());
+            match tokio_acceptor.accept(stream).await {
                 Ok(tls_stream) => {
                     if let Err(e) = handle_tls_connection(tls_stream, addr).await {
                         error!("Error handling TLS connection from {}: {:?}", addr, e);
