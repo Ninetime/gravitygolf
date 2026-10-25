@@ -5,6 +5,14 @@ Gravity Golf brings back the online modes of **Hot Shots Golf: World Invitationa
 public replacement existed. This project is a from-scratch replacement for those servers. You
 play through the [RPCS3](https://rpcs3.net) emulator.
 
+![In a lobby on the revival server, with the Chat Log open](hsg6/docs/images/lobby.jpg)
+
+*In a lobby on the revival server, running in RPCS3, with the Chat Log open.*
+
+![The admin page's Status tab after logging in](hsg6/docs/images/admin.png)
+
+*The server admin page (Status tab) after logging in.*
+
 ## What works
 
 - **Going online:** bootstrap (`ss.info`), EULA, login, server time and the news / Information
