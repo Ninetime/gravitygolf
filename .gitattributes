@@ -2,3 +2,5 @@
 *.sh text eol=lf
 *.service text eol=lf
 *.bat text eol=crlf
+# Game data files: store byte for byte. The game was tested with these exact bytes (CRLF).
+hsg6/server/appdata/* -text
