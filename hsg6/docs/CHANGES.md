@@ -5,7 +5,11 @@ original code and is described in [PROTOCOL.md](PROTOCOL.md) and [OPERATIONS.md]
 
 ## 1. Horizon Medius server (`thirdparty/horizon-server`)
 
-- Upstream: https://github.com/Horizon-Private-Server/horizon-server
+- Upstream: https://github.com/Horizon-Private-Server/horizon-server, by Daniel Gerendasy and the
+  Horizon contributors
+- License: MIT (© 2020 Daniel Gerendasy). The full notice is in
+  [`licenses/horizon-server-LICENSE.txt`](licenses/horizon-server-LICENSE.txt) and applies to the
+  Horizon-derived parts of the patch and of the json config files.
 - Base commit: `b1a0d0398f58b2d2b72ffc122053e788e794185a` ("Merge pull request #38 … dme-improvements")
 - Full diff: [`horizon-server.patch`](horizon-server.patch). Apply with
   `git checkout b1a0d03 && git apply docs/horizon-server.patch` (new files are included).

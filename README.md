@@ -91,7 +91,9 @@ python make_ssinfo.py                           # builds www/hsg6ps3/ss.info
 
 ### 2. Build the Horizon Medius servers
 
-The Medius servers come from upstream Horizon, with a patch for this game's older network library
+The Medius servers are [Horizon Private Server](https://github.com/Horizon-Private-Server/horizon-server)
+(MIT License, © 2020 Daniel Gerendasy and the Horizon contributors). This repo doesn't include
+Horizon itself. You build it from upstream, with a patch for this game's older network library
 (details in `hsg6/docs/CHANGES.md` §1):
 
 ```sh
@@ -166,8 +168,16 @@ exposed, the admin page's security model, the data files to back up, and trouble
 
 - Server, protocol research and documentation by **Ninetime**, with AI assistance from
   **Claude** (Anthropic).
-- [Horizon Private Server](https://github.com/Horizon-Private-Server/horizon-server) for the Medius
-  server implementation.
+- **Medius server:** [Horizon Private Server](https://github.com/Horizon-Private-Server/horizon-server)
+  by Daniel Gerendasy and the Horizon contributors.
+  - It's an open-source Medius server emulator, originally built to revive the online servers of
+    *Ratchet: Deadlocked* (PS2).
+  - All of the lobby, login, game-world and NAT servers here are Horizon. This project only adds
+    the HSG6 fixes in `hsg6/docs/horizon-server.patch`.
+  - Horizon is released under the MIT License. Its copyright and permission notice is reproduced
+    in [`hsg6/docs/licenses/horizon-server-LICENSE.txt`](hsg6/docs/licenses/horizon-server-LICENSE.txt).
+    That notice also covers the parts of the patch and the `medius/`, `muis/`, `dme/`, `nat/`
+    config files that come from Horizon.
 - The [RPCS3](https://rpcs3.net) and [RPCN](https://github.com/RipleyTom/rpcn) projects.
 
 Hot Shots Golf / Everybody's Golf is a trademark of Sony Interactive Entertainment. This project
