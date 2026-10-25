@@ -65,6 +65,13 @@ was learned, including the addresses in the game executable where each piece of 
 
 ## Building
 
+The repo won't run as downloaded. It contains the HSG6 server code, but not:
+- **The game-derived data files.** Step 1 extracts them from your own copy of the game.
+- **The Medius server programs.** Step 2 builds them from Horizon's source.
+
+The start scripts can only launch what's there. If you skip step 2, the HTTP server comes up but
+the Medius servers fail to start, so lobbies won't work.
+
 ### Requirements
 
 - A legally obtained copy of the game (**NPUA80864**, updated to **v01.03**) installed in
@@ -163,6 +170,11 @@ To host for players on other machines:
 
 `hsg6/docs/OPERATIONS.md` §3 has the full list. It also covers which ports must **not** be
 exposed, the admin page's security model, the data files to back up, and troubleshooting.
+
+## License
+
+This project is released under the [MIT License](LICENSE). The Horizon-derived parts (the patch
+and the Medius config files) stay under Horizon's own MIT notice; see Credits below.
 
 ## Credits
 
