@@ -118,7 +118,8 @@ def main():
         game_data(a.usrdir)
     else:
         print("\nGame data not generated: run again with --usrdir <NPUA80864/USRDIR> (see README).")
-    print("\nDone. Start the servers with start_background.bat (or start_all.bat).")
+    start = "start_background.bat (or start_all.bat)" if os.name == "nt" else "./start.sh (or the systemd unit in linux/)"
+    print(f"\nDone. Start the servers with {start}.")
 
 
 if __name__ == "__main__":

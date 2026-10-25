@@ -1,0 +1,27 @@
+# systemd unit for the HSG6 servers. Install:
+#   1. Edit User= and WorkingDirectory= (and the dotnet location in Environment=PATH if needed).
+#   2. sudo cp linux/hsg6.service /etc/systemd/system/ && sudo systemctl daemon-reload
+#   3. sudo systemctl enable --now hsg6
+# Logs: logs/<name>.log in the install folder, or `journalctl -u hsg6`.
+[Unit]
+Description=HSG6 (Hot Shots Golf: World Invitational) revival servers
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=hsg6
+WorkingDirectory=/opt/gravitygolf/hsg6
+Environment=PATH=/usr/local/bin:/usr/bin:/bin:/usr/share/dotnet
+Environment=DOTNET_CLI_TELEMETRY_OPTOUT=1
+# Optional settings, e.g.:
+# Environment=HSG6_MEDIUS_HOST=203.0.113.10
+# Environment=HSG6_ADMIN_BIND=127.0.0.1
+ExecStart=/usr/bin/python3 -u supervisor.py
+ExecStop=/bin/sh stop.sh
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=60
+
+[Install]
+WantedBy=multi-user.target
