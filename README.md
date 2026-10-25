@@ -49,7 +49,7 @@ calls its result handler), not a server bug. See
 With those in place, setup is a clone and one command:
 
 ```sh
-git clone --recursive -b hsg6-server https://github.com/Ninetime/gravitygolf.git
+git clone --recursive https://github.com/Ninetime/gravitygolf.git
 cd gravitygolf/hsg6
 python build.py --usrdir <path to NPUA80864/USRDIR>
 start_background.bat
