@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Galaxy Golf Server Admin - Login</title>
+<link rel="stylesheet" href="theme.css">
+<style>
+  .login { max-width:400px; margin:60px auto; }
+  .login .grid { grid-template-columns:120px 1fr; }
+  .login input { width:100%; }
+</style>
+</head><body>
+<header><div class="titletab"><span class="ball"></span>Galaxy Golf Server Admin</div></header>
+<main>
+  <div class="card login">
+    <h2 id="title">Log in</h2>
+    <p id="intro" class="muted" style="display:none"></p>
+    <form id="f" class="grid" onsubmit="go(event)">
+      <label for="u">User name</label><input id="u" autocomplete="username" required>
+      <label for="p">Password</label><input id="p" type="password" autocomplete="current-password" required>
+      <label for="p2" id="p2l" style="display:none">Repeat</label><input id="p2" type="password" autocomplete="new-password" style="display:none">
+      <span></span><div class="actions" style="margin:6px 0 0"><button class="act" id="btn">Log in</button></div>
+    </form>
+    <p id="err" class="bad"></p>
+  </div>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+let mode = "login";
+async function post(path, body) {
+  const r = await fetch(path, {method: "POST", headers: {"Content-Type": "application/json", "X-HSG6": "1"}, body: JSON.stringify(body)});
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || r.status);
+  return j;
+}
+async function init() {
+  const st = await (await fetch("/api/authstate")).json();
+  if (st.user) return location.replace("/");
+  if (st.setup_needed) {
+    $("title").textContent = "Create the admin account";
+    $("intro").style.display = "";
+    if (!st.setup_allowed) {
+      $("intro").textContent = "No admin account exists yet. Open this page on the server machine itself (http://127.0.0.1:18080/) to create it.";
+      $("f").style.display = "none";
+      return;
+    }
+    mode = "setup";
+    $("intro").textContent = "First run: choose the admin user name and a password (at least 8 characters).";
+    $("p").autocomplete = "new-password";
+    $("p2").style.display = $("p2l").style.display = "";
+    $("btn").textContent = "Create account";
+  }
+}
+async function go(e) {
+  e.preventDefault(); $("err").textContent = "";
+  try {
+    if (mode === "setup") {
+      if ($("p").value !== $("p2").value) throw new Error("The passwords differ.");
+      await post("/api/setup", {user: $("u").value, password: $("p").value});
+    } else {
+      await post("/api/login", {user: $("u").value, password: $("p").value});
+    }
+    location.replace("/");
+  } catch (err) { $("err").textContent = err.message; }
+}
+init();
+</script>
+</body></html>

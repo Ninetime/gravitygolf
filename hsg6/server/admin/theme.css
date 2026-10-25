@@ -1,0 +1,106 @@
+/* Theme: Hot Shots Golf World Invitational online menus (sky, green pill buttons, red title tab,
+   blue table headers). Art from the game's lobby-select screen (admin/img, tools/extract_admin_images.py). */
+:root { --sky:#4aa3f0; --sky2:#1f6fd1; --green:#43c639; --green2:#1e8f1c; --greendk:#0f4d0e; --red:#e8364c;
+        --red2:#b0102b; --yellow:#ffe24a; --navy:#16306b; --fg:#1b2a3d; --muted:#5d6f86; --card:rgba(255,255,255,.94);
+        --line:#c9dbee; --bad:#d8283f; --ok:#1f9a2a; --orange:#ff7b2e; --orange2:#e2401b; }
+* { box-sizing:border-box; }
+body { margin:0; color:var(--fg); font:14px/1.45 "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+       background:#5aaef5 url(img/bg.jpg) center top / cover fixed; min-height:100vh; }
+/* header: red title tab with a golf ball, clock on the right */
+header { display:flex; align-items:center; gap:16px; padding:0 24px 0 0; flex-wrap:wrap;
+         background:linear-gradient(#ffffffe0,#e3f1ffd8); border-bottom:3px solid #fff; box-shadow:0 2px 10px #0003; }
+.titletab { position:relative; padding:13px 60px 13px 72px; color:#fff; font-size:22px; font-weight:800; font-style:italic;
+            letter-spacing:.3px; text-shadow:0 2px 0 var(--red2), 0 0 6px #0005;
+            background:linear-gradient(#ff6a7c, var(--red) 45%, var(--red2)); clip-path:polygon(0 0,100% 0,calc(100% - 36px) 100%,0 100%); }
+.ball { position:absolute; left:20px; top:50%; width:38px; height:38px; margin-top:-19px; border-radius:50%;
+        background:radial-gradient(circle at 35% 30%, #fff 0 30%, #e9eef3 55%, #b9c4cf 100%);
+        box-shadow:inset -3px -4px 6px #0002, 0 2px 4px #0005; }
+.ball::after { content:""; position:absolute; inset:0; border-radius:50%; opacity:.45;
+        background:radial-gradient(circle, #9aa7b4 1.4px, transparent 1.8px) 0 0/7px 7px; }
+.clock { margin-left:auto; color:var(--navy); font-weight:800; font-size:17px; text-align:right; }
+.clock small { display:block; color:var(--muted); font-weight:700; font-size:11px; }
+/* nav: green pill buttons like the in-game "Clubhouse / Floor / Lobby" labels; selected = yellow text */
+nav { display:flex; gap:8px; padding:12px 20px; flex-wrap:wrap; background:#ffffff4d; }
+nav button { border:0; cursor:pointer; padding:8px 18px; border-radius:22px; font:inherit; font-weight:800; color:#fff;
+             background:linear-gradient(#7fe56f, var(--green) 50%, var(--green2));
+             box-shadow:inset 0 2px 0 #ffffff80, 0 2px 0 var(--greendk), 0 3px 6px #0003;
+             text-shadow:-1px -1px 0 var(--greendk), 1px -1px 0 var(--greendk), -1px 1px 0 var(--greendk), 1px 1px 0 var(--greendk); }
+nav button:hover { filter:brightness(1.07); }
+nav button.on { color:var(--yellow); background:linear-gradient(#5fd24e, #239a20 55%, #13700f); transform:translateY(1px); }
+main { padding:20px 24px 60px; max-width:1240px; }
+section { display:none; } section.on { display:block; }
+/* cards: white panels with a sky-blue title strip (like the in-game Information window) */
+.card { position:relative; background:var(--card); border:2px solid #fff; border-radius:14px; padding:14px 16px;
+        margin-bottom:16px; box-shadow:0 0 0 2px #8cc3ef, 0 6px 16px #0b3a7a33; }
+.card h2 { margin:-14px -16px 12px; padding:9px 16px; border-radius:12px 12px 0 0; font-size:16px; font-weight:800; color:var(--navy);
+           background:linear-gradient(#e6f6ff,#a9dcff); border-bottom:2px solid #8cc3ef; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.card .card { box-shadow:0 0 0 1px var(--line); background:#f7fbff; }
+.card .card h2 { background:linear-gradient(#f3faff,#d6eeff); font-size:14px; }
+.row { display:flex; gap:16px; flex-wrap:wrap; }
+/* game-style stat boxes (the "Players / 0" box on the lobby-select screen) */
+.gstat { display:flex; flex-direction:column; min-width:220px; flex:1; border-radius:10px; overflow:hidden; border:2px solid #fff; box-shadow:0 0 0 2px #8cc3ef, 0 4px 10px #0003; margin-bottom:16px; }
+.gstat > span { display:block; padding:5px 12px; font-weight:800; color:#fff; text-align:center;
+              background:linear-gradient(#c8ef3a,#76c31a); text-shadow:0 1px 0 #3c6b08, 0 0 3px #3c6b08; }
+.gstat > b { display:block; flex:1; padding:8px 14px; text-align:right; font-size:30px; color:#fff; background:linear-gradient(#2a4d93,#16306b);
+           text-shadow:0 2px 0 #0008; }
+.gstat > b.big { display:flex; align-items:center; justify-content:center; font-size:40px; }
+.gstat > b.sm { font-size:16px; text-align:left; line-height:1.45; min-height:52px; }
+/* tables: blue header row like the multiplayer room player list */
+table { border-collapse:separate; border-spacing:0; width:100%; border-radius:8px; overflow:hidden; }
+th { text-align:left; padding:7px 9px; color:#fff; font-weight:800; font-size:13px; background:linear-gradient(#5aa8ff,#2365cc); }
+td { text-align:left; padding:6px 9px; border-bottom:1px solid var(--line); vertical-align:middle; background:#fff; }
+tr:nth-child(even) td { background:#f2f8ff; }
+input, select, textarea { font:inherit; color:var(--fg); background:#fff; border:2px solid #b9d7f2; border-radius:8px; padding:5px 8px; }
+input:focus, select:focus, textarea:focus { outline:none; border-color:var(--sky); box-shadow:0 0 0 3px #4aa3f033; }
+textarea { width:100%; min-height:90px; }
+input[type=number] { width:86px; }
+/* primary action = orange/red "Create" button */
+button.act { border:0; cursor:pointer; font:inherit; font-weight:800; font-size:15px; color:#fff; padding:9px 28px; border-radius:22px;
+             background:linear-gradient(#ffa15e, var(--orange) 45%, var(--orange2));
+             box-shadow:inset 0 2px 0 #ffffff70, 0 2px 0 #9b2a0b, 0 4px 8px #0003; text-shadow:0 1px 0 #9b2a0b; }
+button.act:hover, button.sub:hover { filter:brightness(1.06); }
+button.sub { cursor:pointer; font:inherit; font-weight:700; color:var(--navy); padding:5px 14px; border-radius:18px; border:2px solid #8cc3ef;
+             background:linear-gradient(#fff,#e3f2ff); }
+button.del { background:none; border:0; color:var(--bad); cursor:pointer; font:inherit; font-weight:700; }
+.muted { color:var(--muted); } .bad { color:var(--bad); font-weight:700; } .ok { color:var(--ok); }
+p.muted { background:#ffffffc8; border-radius:10px; padding:7px 12px; }
+.grid { display:grid; grid-template-columns:180px 1fr; gap:8px 12px; align-items:center; }
+.grid > label { font-weight:700; color:var(--navy); }
+.pill { display:inline-block; padding:1px 10px; border-radius:12px; font-size:12px; font-weight:800; color:#fff; background:var(--sky2); }
+.pill.ok { background:var(--ok); } .pill.bad { background:var(--bad); }
+#toast { position:fixed; right:20px; bottom:20px; padding:12px 18px; border-radius:12px; background:#fff; font-weight:700; display:none; max-width:440px;
+         box-shadow:0 0 0 2px #8cc3ef, 0 6px 16px #0004; z-index:9; }
+pre.prev { margin:0; padding:10px 12px; background:#fff; color:#111; border:3px solid #9cc7e8; border-radius:10px; box-shadow:inset 0 0 0 2px #e7f4ff;
+           font:14px/1.35 Consolas, ui-monospace, monospace; white-space:pre; overflow:hidden; max-width:100%; }
+pre.log { height:540px; overflow:auto; margin:0; padding:10px; background:#0d1b33; color:#cfe3ff; border-radius:10px;
+          font:12px/1.4 Consolas, ui-monospace, monospace; white-space:pre-wrap; }
+.actions { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:6px 0 18px; }
+/* framed thumbnails: picture behind the game's clubhouse / floor / lobby frame */
+.frame { position:relative; width:var(--w,120px); aspect-ratio:336/288; flex:none; }
+.frame .pic { position:absolute; left:17%; top:23%; width:66%; height:53%; background:#cde center/cover no-repeat; }
+.frame img { position:absolute; inset:0; width:100%; height:100%; }
+.thumb { width:72px; height:48px; object-fit:cover; border-radius:6px; border:2px solid #fff; box-shadow:0 0 0 1px #8cc3ef; vertical-align:middle; }
+.clubhead { display:flex; gap:18px; align-items:center; }
+.tree-club { display:flex; gap:14px; align-items:flex-start; margin-bottom:14px; }
+.tree-floor { display:flex; gap:10px; align-items:center; margin:8px 0 4px; }
+.tree-lobby { display:flex; gap:8px; align-items:center; margin:3px 0 3px 84px; }
+ul.tlist { list-style:none; margin:0; padding:0; }
+ul.tlist li { display:flex; gap:10px; align-items:center; padding:3px 0; }
+ul.tlist li + li { border-top:1px solid #ffffff30; }
+ul.tlist .slot { flex:none; width:24px; height:24px; border-radius:50%; text-align:center; line-height:24px; font-size:13px;
+                 color:var(--navy); text-shadow:none; background:radial-gradient(circle at 35% 30%, #fff, #cfd8e2); }
+ul.tlist small { display:block; font-size:12px; font-weight:600; color:#bcd3ff; text-shadow:none; }
+.count { font-weight:800; color:var(--navy); }
+.empty { text-align:center; padding:14px; color:var(--muted); font-weight:700; }
+.acct { display:flex; gap:8px; align-items:center; }
+.sub-link { color:var(--navy); font-weight:700; margin-right:4px; }
+.gstat > b small.dates { display:block; font-size:13px; color:#bcd3ff; font-weight:700; margin-top:2px; }
+.gstat > b.center { display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; }
+button.act.danger { background:linear-gradient(#ff7a8a, var(--red) 45%, var(--red2)); box-shadow:inset 0 2px 0 #ffffff70, 0 2px 0 #7a0a1d, 0 4px 8px #0003; text-shadow:0 1px 0 #7a0a1d; }
+nav button.logout { background:linear-gradient(#ff8a98, var(--red) 50%, var(--red2)); box-shadow:inset 0 2px 0 #ffffff80, 0 2px 0 #7a0a1d, 0 3px 6px #0003;
+  text-shadow:-1px -1px 0 #7a0a1d, 1px -1px 0 #7a0a1d, -1px 1px 0 #7a0a1d, 1px 1px 0 #7a0a1d; }
+nav a.navlink { margin-left:auto; align-self:center; padding:8px 14px; border-radius:22px; font-weight:800; color:var(--navy);
+  text-decoration:none; background:linear-gradient(#fff,#e3f2ff); box-shadow:inset 0 0 0 2px #8cc3ef, 0 2px 4px #0002; }
+nav a.navlink:hover { filter:brightness(1.05); }
+.acctcard { flex:1; min-width:380px; }
+.acctcard .grid { grid-template-columns:150px minmax(0, 320px); }

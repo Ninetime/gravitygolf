@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Galaxy Golf Server Status</title>
+<link rel="stylesheet" href="theme.css">
+<style>
+  /* public page only: lobby usage grid, schedule and result tables */
+  .usage td, .usage th { text-align:center; white-space:nowrap; }
+  .usage td:first-child, .usage th:first-child { text-align:left; }
+  .usage td.busy { font-weight:800; color:var(--ok); }
+  .usage td.zero { color:#9aaabb; }
+  .usage th img { display:block; margin:0 auto 3px; }
+  .results { display:grid; grid-template-columns:repeat(auto-fill, minmax(340px, 1fr)); gap:0 16px; }
+  .tlist { list-style:none; margin:0; padding:0; }
+  .tlist li { display:flex; gap:10px; align-items:center; }
+  .tlist small { display:block; font-size:12px; color:#bcd3ff; font-weight:700; }
+  .slot { display:inline-grid; place-items:center; width:24px; height:24px; border-radius:50%; background:#fff; color:var(--navy); font-size:13px; }
+  .scroll { overflow-x:auto; }
+  .clubpick { display:flex; gap:16px; align-items:center; margin-bottom:10px; flex-wrap:wrap; }
+  .clubpick select { font-weight:800; color:var(--navy); font-size:15px; min-width:200px; }
+  .sched td.date { white-space:nowrap; font-weight:800; color:var(--navy); }
+</style>
+</head><body>
+<header>
+  <div class="titletab"><span class="ball"></span>Galaxy Golf Server Status</div>
+  <div class="clock" id="hdr">loading…</div>
+</header>
+<main>
+  <div class="row">
+    <div class="gstat"><span>Players online</span><b id="p-online" class="big">–</b></div>
+    <div class="gstat"><span>Today's Daily Int'l Tournament</span><b id="p-tour" class="sm">–</b></div>
+    <div class="gstat"><span>Current Tour</span><b id="p-series" class="sm center">–</b></div>
+  </div>
+  <p id="p-err" class="bad"></p>
+
+  <div class="card"><h2>Lobby usage <span class="muted" id="p-rooms" style="font-weight:700"></span></h2>
+    <div class="clubpick" id="p-pick"></div>
+    <div id="p-clubs"></div></div>
+
+  <div class="row" style="align-items:flex-start">
+    <div class="card" style="flex:1;min-width:300px"><h2>Tour standings <span class="muted" id="p-tourname"></span></h2>
+      <table><thead><tr><th>#</th><th>Player</th><th>Tour Points</th></tr></thead><tbody id="p-standings"></tbody></table></div>
+    <div class="card" style="flex:1.5;min-width:360px"><h2>Schedule <span class="muted">upcoming Daily Int'l Tournaments</span></h2>
+      <table class="sched"><thead><tr><th>Date (JST)</th><th>Tournament</th><th>Course</th><th>Holes</th><th>Tee</th></tr></thead>
+        <tbody id="p-sched"></tbody></table></div>
+  </div>
+
+  <div class="card"><h2>Daily tournament results <span class="muted">last 14 days</span></h2>
+    <div id="p-results" class="results"></div></div>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]);
+const clubImg = ci => `img/club_${Math.min(+ci || 0, 2)}.jpg`;
+const floorImg = (ci, fi) => `img/floor_${Math.min((+ci || 0) * 10 + (+fi || 0), 23)}.jpg`;
+const lobbyImg = map => `img/lobby_${Math.max(0, Math.min((+map || 8) - 8, 6))}.jpg`;
+const frame = (kind, pic, w) => `<div class="frame" style="--w:${w}px"><div class="pic" style="background-image:url(${pic})"></div><img src="img/icon_${kind}.png" alt="${kind}"></div>`;
+const score = n => n > 0 ? "+" + n : n < 0 ? String(n) : "E";
+const tourLine = t => `<li><span class="slot">${t.slot}</span><span>${esc(t.label)}<small>${esc(t.course)} · ${esc(t.holes)} · ${esc(t.tee)}</small></span></li>`;
+const thumb = (src) => `<img class="thumb" style="width:54px;height:36px" src="${src}">`;
+
+// One snapshot from the server, rebuilt there at most every 3 minutes (public.py). The browser
+// revalidates it with its ETag, so an unchanged snapshot is not downloaded again.
+let snap = null, lastTag = "", club = 0;
+
+function pickClub(i) { club = +i; renderClubs(); }
+
+function renderClubs() {
+  const cs = snap.clubhouses;
+  if (!cs.length) { $("p-pick").innerHTML = ""; $("p-clubs").innerHTML = `<div class="empty">No clubhouses configured</div>`; return; }
+  if (club >= cs.length) club = 0;
+  const c = cs[club], lob = (c.floors[0] || {lobbies: []}).lobbies;
+  $("p-pick").innerHTML = frame("clubhouse", clubImg(club), 110) +
+    `<div><label class="count" for="clubsel">Clubhouse</label><br><select id="clubsel" onchange="pickClub(this.value)">` +
+    cs.map((x, i) => `<option value="${i}" ${i === club ? "selected" : ""}>${esc(x.name)} (${x.count})</option>`).join("") +
+    `</select></div><div class="count" style="font-size:16px">${esc(c.name)} Clubhouse <span class="pill ${c.count ? "ok" : ""}">${c.count}</span> player(s)</div>`;
+  $("p-clubs").innerHTML = `<div class="scroll"><table class="usage"><thead><tr><th>Floor</th>` +
+    lob.map(l => `<th>${thumb(lobbyImg(l.map))}${esc(l.name)}</th>`).join("") + `<th>Total</th></tr></thead><tbody>` +
+    c.floors.map((f, fi) => `<tr><td>${thumb(floorImg(club, fi))} <b>${esc(f.name)}</b></td>` +
+      f.lobbies.map(l => `<td class="${l.count ? "busy" : "zero"}">${l.count}${l.capacity ? " / " + l.capacity : ""}</td>`).join("") +
+      `<td class="${f.count ? "busy" : "zero"}">${f.count}</td></tr>`).join("") + `</tbody></table></div>`;
+}
+
+function render() {
+  const s = snap;
+  $("p-err").textContent = s.online_ok ? "" : "The lobby server was not reachable at the last update.";
+  $("p-online").textContent = s.players_online ?? "–";
+  $("p-tour").innerHTML = s.tournament_today.length ? `<ul class="tlist">${s.tournament_today.map(tourLine).join("")}</ul>` : "none";
+  $("p-series").innerHTML = `${esc(s.tour.name)}<small class="dates">${esc(s.tour.start)} → ${esc(s.tour.end)}</small>`;
+  $("p-tourname").textContent = s.tour.name;
+  $("p-rooms").textContent = `· ${s.lobby_players} in lobbies · ${s.rooms} multiplayer room(s) with ${s.room_players} player(s)`;
+  $("p-standings").innerHTML = s.tour.standings.map(r => `<tr><td>${r.rank}</td><td><b>${esc(r.name)}</b></td><td>${r.tp}</td></tr>`).join("")
+    || `<tr><td colspan=3 class="empty">No points yet this tour</td></tr>`;
+  renderClubs();
+  $("p-sched").innerHTML = s.schedule.map(d => {
+    const day = `<td class="date">${esc(d.weekday)} ${esc(d.date.slice(5))}</td>`;
+    return d.tournaments.map(t => `<tr>${day}<td><b>${esc(t.label)}</b></td><td>${esc(t.course)}</td><td>${esc(t.holes)}</td><td>${esc(t.tee)}</td></tr>`).join("")
+      || `<tr>${day}<td colspan=4 class="muted">no tournament</td></tr>`;
+  }).join("");
+  $("p-results").innerHTML = s.results.map(b => `<div class="card"><h2>${esc(b.date)} · ${esc(b.label)}
+        ${b.in_progress ? `<span class="pill ok">in progress</span>` : ""}</h2>
+      <p class="muted" style="margin:0 0 8px">${esc(b.course)} · ${esc(b.holes)} · ${esc(b.tee)}</p>
+      <table><thead><tr><th>#</th><th>Player</th><th>Score</th><th>Points</th></tr></thead><tbody>` +
+      (b.results.map(r => `<tr><td>${r.rank}</td><td><b>${esc(r.name)}</b></td><td>${score(r.score)}</td><td>${r.points}</td></tr>`).join("")
+        || `<tr><td colspan=4 class="empty">No results yet</td></tr>`) + `</tbody></table></div>`).join("")
+      || `<div class="empty">No results in the last 14 days</div>`;
+}
+
+function clock() {
+  const now = new Date().toLocaleString("sv-SE", {timeZone: "Asia/Tokyo"}).slice(0, 16);
+  const upd = snap ? (snap.updated || "").slice(11, 16) : "";
+  $("hdr").innerHTML = `🕘 ${esc(now)} JST<small>updated every 3 minutes${upd ? " · last change " + esc(upd) + " JST" : ""}</small>`;
+}
+
+async function refresh() {
+  let next = 180;
+  try {
+    const r = await fetch("/api/public");   // the browser adds If-None-Match; 304 reuses its copy
+    if (!r.ok) throw new Error(r.status);
+    next = +(r.headers.get("X-Next-Refresh") || 180);
+    const tag = r.headers.get("ETag") || "";
+    if (!snap || tag !== lastTag) { snap = await r.json(); lastTag = tag; render(); }
+  } catch (e) { $("p-err").textContent = `Could not load the server status (${e.message}). Retrying in 3 minutes.`; }
+  clock();
+  // poll just after the server's next snapshot is due
+  setTimeout(refresh, (Math.min(Math.max(next, 5), 180) + 2) * 1000);
+}
+refresh();
+setInterval(clock, 30000);
+</script>
+</body></html>

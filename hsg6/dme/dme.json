@@ -1,0 +1,7 @@
+{
+  "ApplicationIds": [24224],
+  "TCPPort": 10073,
+  "UDPPort": 50000,
+  "MPS": { "Ip": "127.0.0.1", "Port": 10077 },
+  "Logging": { "LogPath": "logs/dme.log", "LogToConsole": true, "LogLevel": 0 }
+}

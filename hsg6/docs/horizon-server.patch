@@ -1,0 +1,696 @@
+diff --git a/RT.Models/Lobby/MediusGameListRequest.cs b/RT.Models/Lobby/MediusGameListRequest.cs
+new file mode 100644
+index 0000000..5f51b23
+--- /dev/null
++++ b/RT.Models/Lobby/MediusGameListRequest.cs
+@@ -0,0 +1,66 @@
++using RT.Common;
++using Server.Common;
++
++namespace RT.Models
++{
++    /// <summary>
++    /// Original (non ExtraInfo) game list request, lobby id 0x29.
++    /// </summary>
++    [MediusMessage(NetMessageTypes.MessageClassLobby, MediusLobbyMessageIds.GameList)]
++    public class MediusGameListRequest : BaseLobbyExtMessage, IMediusRequest
++    {
++        public override byte PacketType => (byte)MediusLobbyMessageIds.GameList;
++
++        public MessageId MessageID { get; set; }
++
++        public string SessionKey;
++        public int ApplicationId;
++        public ushort PageID;
++        public ushort PageSize;
++
++        public override void Deserialize(Server.Common.Stream.MessageReader reader)
++        {
++            base.Deserialize(reader);
++            MessageID = reader.Read<MessageId>();
++            SessionKey = reader.ReadString(Constants.SESSIONKEY_MAXLEN);
++            reader.ReadBytes(2);
++            ApplicationId = reader.ReadInt32();
++            PageID = reader.ReadUInt16();
++            PageSize = reader.ReadUInt16();
++        }
++
++        public override void Serialize(Server.Common.Stream.MessageWriter writer)
++        {
++            base.Serialize(writer);
++            writer.Write(MessageID ?? MessageId.Empty);
++            writer.Write(SessionKey, Constants.SESSIONKEY_MAXLEN);
++            writer.Write(new byte[2]);
++            writer.Write(ApplicationId);
++            writer.Write(PageID);
++            writer.Write(PageSize);
++        }
++
++        public IMediusResponse GetDefaultFailedResponse(IMediusRequest request)
++        {
++            if (request == null)
++                return null;
++
++            return new MediusGameListResponse()
++            {
++                MessageID = request.MessageID,
++                StatusCode = MediusCallbackStatus.MediusNoResult,
++                EndOfList = true
++            };
++        }
++
++        public override string ToString()
++        {
++            return base.ToString() + " " +
++                $"MessageID:{MessageID} " +
++                $"SessionKey:{SessionKey} " +
++                $"ApplicationId:{ApplicationId} " +
++                $"PageID:{PageID} " +
++                $"PageSize:{PageSize}";
++        }
++    }
++}
+diff --git a/RT.Models/Lobby/MediusGameListResponse.cs b/RT.Models/Lobby/MediusGameListResponse.cs
+new file mode 100644
+index 0000000..493967e
+--- /dev/null
++++ b/RT.Models/Lobby/MediusGameListResponse.cs
+@@ -0,0 +1,69 @@
++using RT.Common;
++using Server.Common;
++
++namespace RT.Models
++{
++    /// <summary>
++    /// Original (non ExtraInfo) game list response, lobby id 0x2A.
++    /// </summary>
++    [MediusMessage(NetMessageTypes.MessageClassLobby, MediusLobbyMessageIds.GameListResponse)]
++    public class MediusGameListResponse : BaseLobbyMessage, IMediusResponse
++    {
++        public override byte PacketType => (byte)MediusLobbyMessageIds.GameListResponse;
++
++        public bool IsSuccess => StatusCode >= 0;
++
++        public MessageId MessageID { get; set; }
++
++        public MediusCallbackStatus StatusCode;
++        public int MediusWorldID;
++        public string GameName;
++        public MediusWorldStatus WorldStatus;
++        public MediusGameHostType GameHostType;
++        public int PlayerCount;
++        public bool EndOfList;
++
++        public override void Deserialize(Server.Common.Stream.MessageReader reader)
++        {
++            base.Deserialize(reader);
++            MessageID = reader.Read<MessageId>();
++            reader.ReadBytes(3);
++            StatusCode = reader.Read<MediusCallbackStatus>();
++            MediusWorldID = reader.ReadInt32();
++            GameName = reader.ReadString(Constants.GAMENAME_MAXLEN);
++            WorldStatus = reader.Read<MediusWorldStatus>();
++            GameHostType = reader.Read<MediusGameHostType>();
++            PlayerCount = reader.ReadInt32();
++            EndOfList = reader.ReadBoolean();
++            reader.ReadBytes(3);
++        }
++
++        public override void Serialize(Server.Common.Stream.MessageWriter writer)
++        {
++            base.Serialize(writer);
++            writer.Write(MessageID ?? MessageId.Empty);
++            writer.Write(new byte[3]);
++            writer.Write(StatusCode);
++            writer.Write(MediusWorldID);
++            writer.Write(GameName, Constants.GAMENAME_MAXLEN);
++            writer.Write(WorldStatus);
++            writer.Write(GameHostType);
++            writer.Write(PlayerCount);
++            writer.Write(EndOfList);
++            writer.Write(new byte[3]);
++        }
++
++        public override string ToString()
++        {
++            return base.ToString() + " " +
++                $"MessageID:{MessageID} " +
++                $"StatusCode:{StatusCode} " +
++                $"MediusWorldID:{MediusWorldID} " +
++                $"GameName:{GameName} " +
++                $"WorldStatus:{WorldStatus} " +
++                $"GameHostType:{GameHostType} " +
++                $"PlayerCount:{PlayerCount} " +
++                $"EndOfList:{EndOfList}";
++        }
++    }
++}
+diff --git a/RT.Models/Lobby/MediusGetTotalUsersRequest.cs b/RT.Models/Lobby/MediusGetTotalUsersRequest.cs
+new file mode 100644
+index 0000000..6fba6ff
+--- /dev/null
++++ b/RT.Models/Lobby/MediusGetTotalUsersRequest.cs
+@@ -0,0 +1,54 @@
++using RT.Common;
++using Server.Common;
++
++namespace RT.Models
++{
++    [MediusMessage(NetMessageTypes.MessageClassLobby, MediusLobbyMessageIds.GetTotalUsers)]
++    public class MediusGetTotalUsersRequest : BaseLobbyExtMessage, IMediusRequest
++    {
++        public override byte PacketType => (byte)MediusLobbyMessageIds.GetTotalUsers;
++
++        public MessageId MessageID { get; set; }
++
++        public string SessionKey;
++        public int ApplicationId;
++
++        public override void Deserialize(Server.Common.Stream.MessageReader reader)
++        {
++            base.Deserialize(reader);
++            MessageID = reader.Read<MessageId>();
++            SessionKey = reader.ReadString(Constants.SESSIONKEY_MAXLEN);
++            reader.ReadBytes(2);
++            ApplicationId = reader.ReadInt32();
++        }
++
++        public override void Serialize(Server.Common.Stream.MessageWriter writer)
++        {
++            base.Serialize(writer);
++            writer.Write(MessageID ?? MessageId.Empty);
++            writer.Write(SessionKey, Constants.SESSIONKEY_MAXLEN);
++            writer.Write(new byte[2]);
++            writer.Write(ApplicationId);
++        }
++
++        public IMediusResponse GetDefaultFailedResponse(IMediusRequest request)
++        {
++            if (request == null)
++                return null;
++
++            return new MediusGetTotalUsersResponse()
++            {
++                MessageID = request.MessageID,
++                StatusCode = MediusCallbackStatus.MediusNoResult
++            };
++        }
++
++        public override string ToString()
++        {
++            return base.ToString() + " " +
++                $"MessageID:{MessageID} " +
++                $"SessionKey:{SessionKey} " +
++                $"ApplicationId:{ApplicationId}";
++        }
++    }
++}
+diff --git a/RT.Models/Lobby/MediusGetTotalUsersResponse.cs b/RT.Models/Lobby/MediusGetTotalUsersResponse.cs
+new file mode 100644
+index 0000000..79f6888
+--- /dev/null
++++ b/RT.Models/Lobby/MediusGetTotalUsersResponse.cs
+@@ -0,0 +1,48 @@
++using RT.Common;
++using Server.Common;
++
++namespace RT.Models
++{
++    [MediusMessage(NetMessageTypes.MessageClassLobby, MediusLobbyMessageIds.GetTotalUsersResponse)]
++    public class MediusGetTotalUsersResponse : BaseLobbyMessage, IMediusResponse
++    {
++        public override byte PacketType => (byte)MediusLobbyMessageIds.GetTotalUsersResponse;
++
++        public bool IsSuccess => StatusCode >= 0;
++
++        public MessageId MessageID { get; set; }
++
++        public uint TotalInSystem;
++        public uint TotalInGame;
++        public MediusCallbackStatus StatusCode;
++
++        public override void Deserialize(Server.Common.Stream.MessageReader reader)
++        {
++            base.Deserialize(reader);
++            MessageID = reader.Read<MessageId>();
++            reader.ReadBytes(3);
++            TotalInSystem = reader.ReadUInt32();
++            TotalInGame = reader.ReadUInt32();
++            StatusCode = reader.Read<MediusCallbackStatus>();
++        }
++
++        public override void Serialize(Server.Common.Stream.MessageWriter writer)
++        {
++            base.Serialize(writer);
++            writer.Write(MessageID ?? MessageId.Empty);
++            writer.Write(new byte[3]);
++            writer.Write(TotalInSystem);
++            writer.Write(TotalInGame);
++            writer.Write(StatusCode);
++        }
++
++        public override string ToString()
++        {
++            return base.ToString() + " " +
++                $"MessageID:{MessageID} " +
++                $"StatusCode:{StatusCode} " +
++                $"TotalInSystem:{TotalInSystem} " +
++                $"TotalInGame:{TotalInGame}";
++        }
++    }
++}
+diff --git a/RT.Models/Lobby/MediusJoinGameResponse.cs b/RT.Models/Lobby/MediusJoinGameResponse.cs
+index 9373834..8f16776 100644
+--- a/RT.Models/Lobby/MediusJoinGameResponse.cs
++++ b/RT.Models/Lobby/MediusJoinGameResponse.cs
+@@ -20,6 +20,12 @@ namespace RT.Models
+         public MediusGameHostType GameHostType;
+         public NetConnectionInfo ConnectInfo;
+ 
++        /// <summary>
++        /// Leave out the 4-byte PS3 trailer. SCE-RT 3.02 clients (HSG6, app 24224) report Medius
++        /// version 113 but expect the 0xBC-byte response and abort the connection on the longer one.
++        /// </summary>
++        public bool OmitTrailer;
++
+         public override void Deserialize(Server.Common.Stream.MessageReader reader)
+         {
+             // 
+@@ -52,7 +58,7 @@ namespace RT.Models
+             writer.Write(GameHostType);
+             writer.Write(ConnectInfo);
+ 
+-            if (writer.MediusVersion >= 112)
++            if (writer.MediusVersion >= 112 && !OmitTrailer)
+                 writer.Write(new byte[4]);
+         }
+ 
+diff --git a/RT.Models/Lobby/MediusTextFilterRequest1.cs b/RT.Models/Lobby/MediusTextFilterRequest1.cs
+index 306aa01..287713a 100644
+--- a/RT.Models/Lobby/MediusTextFilterRequest1.cs
++++ b/RT.Models/Lobby/MediusTextFilterRequest1.cs
+@@ -17,6 +17,7 @@ namespace RT.Models
+ 
+         public string SessionKey; // SESSIONKEY_MAXLEN
+         public string Text; // variable len
++        public int TextLength; // as sent (includes terminator)
+ 
+         public override void Deserialize(Server.Common.Stream.MessageReader reader)
+         {
+@@ -30,6 +31,7 @@ namespace RT.Models
+             SessionKey = reader.ReadString(Constants.SESSIONKEY_MAXLEN);
+             reader.ReadBytes(4);
+             int textLen = reader.ReadInt32();
++            TextLength = textLen;
+             Text = reader.ReadString(textLen);
+         }
+ 
+diff --git a/RT.Models/Lobby/MediusTextFilterResponse1.cs b/RT.Models/Lobby/MediusTextFilterResponse1.cs
+index 3e9d701..e3c5cc8 100644
+--- a/RT.Models/Lobby/MediusTextFilterResponse1.cs
++++ b/RT.Models/Lobby/MediusTextFilterResponse1.cs
+@@ -18,6 +18,13 @@ namespace RT.Models
+ 
+         public MediusCallbackStatus StatusCode;
+ 
++        /// <summary>
++        /// Filtered text echoed back for HSG6 (SCE-RT 3.02 layout, see Serialize). Null = Horizon's
++        /// usual padded layout.
++        /// </summary>
++        public string Text;
++        public int TextLength;
++
+         public override void Deserialize(Server.Common.Stream.MessageReader reader)
+         {
+             // 
+@@ -41,9 +48,19 @@ namespace RT.Models
+             writer.Write(MessageID ?? MessageId.Empty);
+ 
+             // 
+-            writer.Write(new byte[3]);
+-            writer.Write(StatusCode);
+-            writer.Write(new byte[4]);
++            if (Text == null)
++            {
++                writer.Write(new byte[3]);
++                writer.Write(StatusCode);
++                writer.Write(new byte[4]);
++            }
++            else
++            {
++                // SCE-RT 3.02 decoder (0xa16e2c): MessageID[21], status, int length, text[length]; no padding.
++                writer.Write(StatusCode);
++                writer.Write(TextLength);
++                writer.Write(Text, TextLength);
++            }
+         }
+ 
+ 
+diff --git a/Server.Medius/Config/ServerSettings.cs b/Server.Medius/Config/ServerSettings.cs
+index f8af7a5..0818d98 100644
+--- a/Server.Medius/Config/ServerSettings.cs
++++ b/Server.Medius/Config/ServerSettings.cs
+@@ -1,4 +1,4 @@
+-﻿using RT.Cryptography;
++using RT.Cryptography;
+ using Microsoft.Extensions.Logging;
+ using Org.BouncyCastle.Math;
+ using System;
+@@ -19,6 +19,11 @@ namespace Server.Medius.Config
+         /// </summary>
+         public int RefreshConfigInterval = 5000;
+ 
++        /// <summary>
++        /// Port of the read-only JSON status endpoint (GET /status), bound to 127.0.0.1. 0 disables it.
++        /// </summary>
++        public int StatusPort { get; set; } = 10081;
++
+         /// <summary>
+         /// By default the server will grab its local ip.
+         /// If this is set, it will use its public ip instead.
+diff --git a/Server.Medius/Medius/MLS.cs b/Server.Medius/Medius/MLS.cs
+index 61f70b0..cbabcbf 100644
+--- a/Server.Medius/Medius/MLS.cs
++++ b/Server.Medius/Medius/MLS.cs
+@@ -1,4 +1,4 @@
+-﻿using DotNetty.Common.Internal.Logging;
++using DotNetty.Common.Internal.Logging;
+ using DotNetty.Transport.Channels;
+ using RT.Common;
+ using RT.Cryptography;
+@@ -3288,6 +3288,62 @@ namespace Server.Medius
+                             break;
+                         }
+ 
++                    case MediusGetTotalUsersRequest getTotalUsersRequest:
++                        {
++                            // ERROR - Need a session
++                            if (data.ClientObject == null)
++                                throw new InvalidOperationException($"INVALID OPERATION: {clientChannel} sent {getTotalUsersRequest} without a session.");
++
++                            var clients = Program.Manager.GetClients(data.ClientObject.ApplicationId);
++                            data.ClientObject.Queue(new MediusGetTotalUsersResponse()
++                            {
++                                MessageID = getTotalUsersRequest.MessageID,
++                                StatusCode = MediusCallbackStatus.MediusSuccess,
++                                TotalInSystem = (uint)clients.Count(x => x.IsLoggedIn),
++                                TotalInGame = (uint)clients.Count(x => x.IsLoggedIn && x.CurrentGame != null)
++                            });
++                            break;
++                        }
++
++                    case MediusGameListRequest gameListRequest:
++                        {
++                            // ERROR - Need a session
++                            if (data.ClientObject == null)
++                                throw new InvalidOperationException($"INVALID OPERATION: {clientChannel} sent {gameListRequest} without a session.");
++
++                            var games = Program.Manager.GetGameList(
++                                data.ClientObject.ApplicationId,
++                                gameListRequest.PageID,
++                                gameListRequest.PageSize,
++                                data.ClientObject.GameListFilters)
++                                .Select(x => new MediusGameListResponse()
++                                {
++                                    MessageID = gameListRequest.MessageID,
++                                    StatusCode = MediusCallbackStatus.MediusSuccess,
++                                    MediusWorldID = x.Id,
++                                    GameName = x.GameName,
++                                    WorldStatus = x.WorldStatus,
++                                    GameHostType = x.GameHostType,
++                                    PlayerCount = x.PlayerCount
++                                }).ToList();
++
++                            if (games.Count > 0)
++                            {
++                                games[games.Count - 1].EndOfList = true;
++                                data.ClientObject.Queue(games);
++                            }
++                            else
++                            {
++                                data.ClientObject.Queue(new MediusGameListResponse()
++                                {
++                                    MessageID = gameListRequest.MessageID,
++                                    StatusCode = MediusCallbackStatus.MediusNoResult,
++                                    EndOfList = true
++                                });
++                            }
++                            break;
++                        }
++
+                     case MediusChannelList_ExtraInfoRequest1 channelList_ExtraInfoRequest1:
+                         {
+                             // ERROR - Need a session
+@@ -3956,7 +4012,9 @@ namespace Server.Medius
+                                 data.ClientObject.Queue(new MediusTextFilterResponse1()
+                                 {
+                                     MessageID = textFilterRequest1.MessageID,
+-                                    StatusCode = MediusCallbackStatus.MediusSuccess
++                                    StatusCode = MediusCallbackStatus.MediusSuccess,
++                                    Text = data.ClientObject.ApplicationId == 24224 ? textFilterRequest1.Text : null,
++                                    TextLength = textFilterRequest1.TextLength
+                                 });
+                             }
+                             else
+@@ -3964,7 +4022,9 @@ namespace Server.Medius
+                                 data.ClientObject.Queue(new MediusTextFilterResponse1()
+                                 {
+                                     MessageID = textFilterRequest1.MessageID,
+-                                    StatusCode = MediusCallbackStatus.MediusFail
++                                    StatusCode = MediusCallbackStatus.MediusFail,
++                                    Text = data.ClientObject.ApplicationId == 24224 ? textFilterRequest1.Text : null,
++                                    TextLength = textFilterRequest1.TextLength
+                                 });
+                             }
+ 
+diff --git a/Server.Medius/Medius/MPS.cs b/Server.Medius/Medius/MPS.cs
+index 13f2a36..0a11793 100644
+--- a/Server.Medius/Medius/MPS.cs
++++ b/Server.Medius/Medius/MPS.cs
+@@ -1,4 +1,4 @@
+-﻿using DotNetty.Common.Internal.Logging;
++using DotNetty.Common.Internal.Logging;
+ using DotNetty.Transport.Channels;
+ using RT.Common;
+ using RT.Cryptography;
+@@ -250,12 +250,15 @@ namespace Server.Medius
+                                 MessageID = new MessageId(msgId),
+                                 StatusCode = MediusCallbackStatus.MediusSuccess,
+                                 GameHostType = game.GameHostType,
++                                OmitTrailer = rClient.ApplicationId == 24224,
+                                 ConnectInfo = new NetConnectionInfo()
+                                 {
+                                     AccessKey = joinGameResponse.AccessKey,
+                                     SessionKey = rClient.SessionKey,
+                                     WorldID = game.DMEWorldId,
+-                                    ServerKey = joinGameResponse.pubKey,
++                                    // HSG6 (PS3) gets no game key from an unencrypted DME (all zero) and
++                                    // drops the join; hand out the same key the MAS login uses instead.
++                                    ServerKey = IsZero(joinGameResponse.pubKey) ? Program.GlobalAuthPublic : joinGameResponse.pubKey,
+                                     AddressList = new NetAddressList()
+                                     {
+                                         AddressList = new NetAddress[Constants.NET_ADDRESS_LIST_COUNT]
+@@ -264,6 +267,7 @@ namespace Server.Medius
+                                             new NetAddress() {Address = Program.Settings.NATIp, Port = (uint)Program.Settings.NATPort, AddressType = NetAddressType.NetAddressTypeNATService},
+                                         }
+                                     },
++                                    // The DME only implements RT_MSG_CLIENT_CONNECT_TCP_AUX_UDP.
+                                     Type = NetConnectionType.NetConnectionTypeClientServerTCPAuxUDP
+                                 }
+                             });
+@@ -327,5 +331,10 @@ namespace Server.Medius
+         }
+ 
+         
++    
++        private static bool IsZero(RSA_KEY key)
++        {
++            return key == null || key.key == null || key.key.All(x => x == 0);
++        }
+     }
+ }
+diff --git a/Server.Medius/Medius/MediusManager.cs b/Server.Medius/Medius/MediusManager.cs
+index 00a361b..bf4e68a 100644
+--- a/Server.Medius/Medius/MediusManager.cs
++++ b/Server.Medius/Medius/MediusManager.cs
+@@ -1,4 +1,4 @@
+-﻿using DotNetty.Common.Internal.Logging;
++using DotNetty.Common.Internal.Logging;
+ using RT.Common;
+ using RT.Models;
+ using Server.Medius.Models;
+@@ -39,6 +39,22 @@ namespace Server.Medius
+ 
+         #region Clients
+ 
++        /// <summary>
++        /// Snapshot of every client across all app ids (status API).
++        /// </summary>
++        public List<ClientObject> GetAllClients()
++        {
++            return _lookupsByAppId.Values.SelectMany(x => x.AccountIdToClient.Values).ToList();
++        }
++
++        /// <summary>
++        /// Snapshot of every game across all app ids (status API).
++        /// </summary>
++        public List<Game> GetAllGames()
++        {
++            return _lookupsByAppId.Values.SelectMany(x => x.GameIdToGame.Values).ToList();
++        }
++
+         public List<ClientObject> GetClients(int appId)
+         {
+             var appIdsInGroup = GetAppIdsInGroup(appId);
+diff --git a/Server.Medius/Program.cs b/Server.Medius/Program.cs
+index f0e4d50..34a5650 100644
+--- a/Server.Medius/Program.cs
++++ b/Server.Medius/Program.cs
+@@ -1,4 +1,4 @@
+-﻿using DotNetty.Common.Internal.Logging;
++using DotNetty.Common.Internal.Logging;
+ using RT.Cryptography;
+ using Microsoft.Extensions.Logging;
+ using Microsoft.Extensions.Logging.Console;
+@@ -185,6 +185,12 @@ namespace Server.Medius
+             ProxyServer.Start();
+             Logger.Info($"MPS started.");
+ 
++            if (Settings.StatusPort > 0)
++            {
++                StatusApi.Start(Settings.StatusPort);
++                Logger.Info($"Status API on 127.0.0.1:{Settings.StatusPort}.");
++            }
++
+             // 
+             Logger.Info("Started.");
+ 
+diff --git a/Server.Medius/StatusApi.cs b/Server.Medius/StatusApi.cs
+new file mode 100644
+index 0000000..acb451d
+--- /dev/null
++++ b/Server.Medius/StatusApi.cs
+@@ -0,0 +1,94 @@
++using Newtonsoft.Json;
++using System;
++using System.Linq;
++using System.Net;
++using System.Net.Sockets;
++using System.Text;
++using System.Threading;
++using System.Threading.Tasks;
++
++namespace Server.Medius
++{
++    /// <summary>
++    /// Minimal read-only HTTP endpoint (GET /status) used by the HSG6 admin page.
++    /// Plain TcpListener so no URL ACL / admin rights are needed. Localhost only.
++    /// </summary>
++    public static class StatusApi
++    {
++        public static void Start(int port)
++        {
++            var listener = new TcpListener(IPAddress.Loopback, port);
++            listener.Start();
++            Task.Run(async () =>
++            {
++                while (true)
++                {
++                    TcpClient c = null;
++                    try
++                    {
++                        c = await listener.AcceptTcpClientAsync();
++                        _ = Task.Run(() => Serve(c));
++                    }
++                    catch
++                    {
++                        c?.Dispose();
++                    }
++                }
++            });
++        }
++
++        static void Serve(TcpClient c)
++        {
++            using (c)
++            using (var s = c.GetStream())
++            {
++                s.ReadTimeout = 2000;
++                var buf = new byte[4096];
++                try { s.Read(buf, 0, buf.Length); } catch { return; }
++
++                byte[] body;
++                try { body = Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(Snapshot(), Formatting.Indented)); }
++                catch (Exception e) { body = Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(new { error = e.Message })); }
++
++                var head = Encoding.ASCII.GetBytes(
++                    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nConnection: close\r\n" +
++                    $"Content-Length: {body.Length}\r\n\r\n");
++                s.Write(head, 0, head.Length);
++                s.Write(body, 0, body.Length);
++            }
++        }
++
++        static object Snapshot()
++        {
++            var clients = Program.Manager.GetAllClients();
++            var games = Program.Manager.GetAllGames();
++            return new
++            {
++                time = DateTime.UtcNow,
++                clients = clients.Select(x => new
++                {
++                    accountId = x.AccountId,
++                    name = x.AccountName,
++                    appId = x.ApplicationId,
++                    connected = x.IsConnected,
++                    loggedIn = x.IsLoggedIn,
++                    channelId = x.CurrentChannel?.Id,
++                    gameId = x.CurrentGame?.Id,
++                    gameName = x.CurrentGame?.GameName,
++                }).ToList(),
++                games = games.Select(g => new
++                {
++                    id = g.Id,
++                    name = g.GameName,
++                    appId = g.ApplicationId,
++                    status = g.WorldStatus.ToString(),
++                    playerCount = g.PlayerCount,
++                    maxPlayers = g.MaxPlayers,
++                    host = g.Host?.AccountName,
++                    created = g.UtcTimeCreated,
++                    players = g.Clients.Where(p => p?.Client != null && p.InGame).Select(p => p.Client.AccountName).ToList(),
++                }).ToList(),
++            };
++        }
++    }
++}
+diff --git a/Server.NAT/Program.cs b/Server.NAT/Program.cs
+index cd86788..f68a50d 100644
+--- a/Server.NAT/Program.cs
++++ b/Server.NAT/Program.cs
+@@ -33,6 +33,9 @@ namespace Server.NAT
+             Logger.Info($"NAT started.");
+ 
+             await task;
++
++            // Start() returns once the socket is bound; keep serving until killed.
++            await Task.Delay(-1);
+         }
+ 
+         static void Initialize()
+diff --git a/Server.UniverseInformation/MUIS.cs b/Server.UniverseInformation/MUIS.cs
+index 4d3afc1..7e2cf12 100644
+--- a/Server.UniverseInformation/MUIS.cs
++++ b/Server.UniverseInformation/MUIS.cs
+@@ -243,7 +243,9 @@ namespace Server.UnivereInformation
+                     }
+                 case RT_MSG_CLIENT_CONNECT_READY_REQUIRE clientConnectReadyRequire:
+                     {
+-                        Queue(new RT_MSG_SERVER_CRYPTKEY_GAME() { Key = scertClient.CipherService.GetPublicKey(CipherContext.RC_CLIENT_SESSION) }, clientChannel);
++                        // Unencrypted PS3 clients (e.g. HSG6) never send CRYPTKEY_PUBLIC, so there is no session key.
++                        if (!scertClient.IsPS3Client && scertClient.CipherService.HasKey(CipherContext.RC_CLIENT_SESSION))
++                            Queue(new RT_MSG_SERVER_CRYPTKEY_GAME() { Key = scertClient.CipherService.GetPublicKey(CipherContext.RC_CLIENT_SESSION) }, clientChannel);
+                         Queue(new RT_MSG_SERVER_CONNECT_ACCEPT_TCP()
+                         {
+                             PlayerId = 0,

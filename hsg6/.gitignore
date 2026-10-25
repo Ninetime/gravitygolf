@@ -1,0 +1,33 @@
+# Runtime state, secrets and player data
+logs/
+server/logs/
+server/data/
+tools/*.log
+__pycache__/
+*.pyc
+
+# Horizon build output (only the *.json config templates are tracked)
+medius/*
+muis/*
+dme/*
+nat/*
+!medius/*.json
+!muis/*.json
+!dme/*.json
+!nat/*.json
+*.deps.json
+*.runtimeconfig.json
+
+# Upstream clone; docs/horizon-server.patch holds our changes
+thirdparty/
+
+# Extracted from the game or generated (see docs/OPERATIONS.md "Rebuilding from a clean checkout")
+server/admin/img/
+tools/lobby_thumbs/
+server/appdata/Rule_Rule.txt
+server/appdata/*.to
+server/appdata/OnlineData_CommentList_US.txt
+server/appdata/club_house.csv
+server/appdata/floor.csv
+server/appdata/lobby.csv
+server/www/

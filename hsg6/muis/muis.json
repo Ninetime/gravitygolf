@@ -1,0 +1,19 @@
+{
+  "Ports": [10075],
+  "EncryptMessages": false,
+  "Universes": {
+    "24224": [
+      {
+        "Enabled": true,
+        "Name": "HSG6 Revival",
+        "Description": "HSG6 community server",
+        "Endpoint": "127.0.0.1",
+        "SvoURL": "",
+        "ExtendedInfo": "",
+        "Port": 10079,
+        "UniverseId": 1
+      }
+    ]
+  },
+  "Logging": { "LogLevel": 0, "LogToConsole": true, "LogPath": "logs/muis.log" }
+}

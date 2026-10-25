@@ -1,0 +1,531 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Galaxy Golf Server Admin</title>
+<link rel="stylesheet" href="theme.css">
+</head>
+<body>
+<header>
+  <div class="titletab"><span class="ball"></span>Galaxy Golf Server Admin</div>
+  <div class="clock" id="hdr">loading…</div>
+  <div class="acct"><a href="#settings" onclick="show('settings');return false" id="whoami" class="sub-link"></a></div>
+</header>
+<nav id="nav"></nav>
+<main>
+
+<section id="status">
+  <div class="row">
+    <div class="gstat"><span>Players</span><b id="s-users" class="big">–</b></div>
+    <div class="gstat"><span>Today's Daily Int'l Tournament</span><b id="s-tours" class="sm">–</b></div>
+    <div class="gstat"><span>Current Tour</span><b id="s-series" class="sm center">–</b></div>
+  </div>
+  <div class="card"><h2>Players</h2><div id="s-medius" class="bad"></div>
+    <table><thead><tr><th>Name</th><th>Where</th><th>Account</th></tr></thead><tbody id="s-userlist"></tbody></table></div>
+  <div class="row">
+    <div class="card" style="flex:1;min-width:300px"><h2>Players per Clubhouse / Floor / Lobby</h2><div id="s-tree" class="tree"></div></div>
+    <div class="card" style="flex:1;min-width:300px"><h2>Multiplayer rooms / other games</h2>
+      <table><thead><tr><th>Name</th><th>Host</th><th>Players</th><th>Status</th></tr></thead><tbody id="s-rooms"></tbody></table></div>
+  </div>
+  <div class="card"><h2>Recent game-API activity</h2>
+    <table><thead><tr><th>Player</th><th>Last request</th><th>When</th><th>Requests</th></tr></thead><tbody id="s-act"></tbody></table></div>
+</section>
+
+<section id="daily">
+  <div class="card"><h2>Default (every day without an override)</h2>
+    <div id="d-default"></div></div>
+  <div class="card"><h2>Overrides by date</h2>
+    <div class="row" style="align-items:center;margin-bottom:8px">
+      <input type="date" id="d-newdate"> <button class="sub" onclick="addOverride()">Add override</button></div>
+    <div id="d-overrides"></div></div>
+  <div class="card"><h2>Next 14 days</h2>
+    <table><thead><tr><th>Date (JST)</th><th>Series</th><th>Tournaments</th></tr></thead><tbody id="d-cal"></tbody></table></div>
+  <div class="actions"><button class="act" onclick="saveSettings()">Save</button></div>
+  <p class="muted">The game shows one Daily Int'l Tournament per day; use date overrides to vary the
+    rules from day to day. Changes take effect the next time a player
+    opens the Daily Int'l Tournament menu. Changing today's rule set after players have entered gives
+    them results under the old rules.</p>
+</section>
+
+<section id="rulesets">
+  <div id="r-list"></div>
+  <p style="text-align:right"><button class="sub" onclick="resetRulesets()">Reset all rule sets to default</button></p>
+  <div class="actions"><button class="act" onclick="saveSettings()">Save</button></div>
+</section>
+
+<section id="series">
+  <div class="card"><h2>Current tour</h2><div id="se-current" class="muted">loading…</div></div>
+  <div class="card"><h2>Tournament series (tours)</h2>
+    <p class="muted">Tour Points (TP) and the tour ranking are summed over Daily tournaments dated
+      inside the series that contains today. Dates not covered by any series use the calendar month.</p>
+    <table><thead><tr><th>Id</th><th>Name</th><th>Start</th><th>End</th><th></th></tr></thead><tbody id="se-list"></tbody></table>
+    <p><button class="sub" onclick="addSeries()">Add series</button></p></div>
+  <div class="actions"><button class="act" onclick="saveSettings()">Save</button></div>
+</section>
+
+<section id="lobby">
+  <div id="l-clubs"></div>
+  <p><button class="sub" onclick="addClub()">Add clubhouse</button>
+     <button class="sub" onclick="resetLobby()">Reset lobby layout to default</button></p>
+  <div class="actions"><button class="act" onclick="saveSettings()">Save &amp; rebuild app data</button></div>
+  <p class="muted">Limits: 2 clubhouses, 10 floors and 20 lobbies per clubhouse (all floors of a
+    clubhouse share its lobby list). Maps 8–13 are the lobby maps installed with the game.
+    Players get the new layout the next time they go online.</p>
+</section>
+
+<section id="texts">
+  <p class="muted">Type text freely: the server word-wraps it to fit each in-game box (the boxes cannot
+    wrap by themselves). Your own line breaks and blank lines are kept. The preview shows exactly what
+    the game receives.</p>
+  <div class="card"><h2>Information (news)</h2>
+    <p class="muted">The game lays the Information screen out like the original service: each title
+      (with the marker below in front), a blank line, then the body indented. All items show in one
+      scrolling screen.</p>
+    <div class="grid" style="margin-bottom:10px"><label>Marker before titles</label>
+      <input id="t-marker" style="width:90px" oninput="S.format.news_title_marker=this.value;renderNewsPreviews()"></div>
+    <div id="t-news"></div>
+    <p><button class="sub" onclick="S.news.push({title:'New',body:''});renderTexts()">Add item</button></p></div>
+  <div class="card"><h2>User agreement</h2>
+    <div class="grid"><label>Version</label><input type="number" id="t-ever">
+      <label>Text</label><textarea id="t-etext" oninput="S.eula.text=this.value;preview('t-eprev',this.value,S.format.eula_width)"></textarea>
+      <label>In-game preview</label><pre id="t-eprev" class="prev"></pre></div>
+    <p class="muted">Raise the version to make every player accept the agreement again.</p></div>
+  <div class="actions"><button class="act" onclick="saveSettings()">Save</button></div>
+</section>
+
+<section id="scores">
+  <div class="card"><h2>Daily tournament results</h2><div id="sc-list"></div></div>
+</section>
+
+<section id="settings">
+  <div class="row" style="align-items:stretch">
+  <div class="card acctcard"><h2>Your account</h2>
+    <p>Logged in as <b id="st-me"></b>.</p>
+    <form class="grid" onsubmit="changePassword(event)">
+      <label>Current password</label><input id="st-old" type="password" autocomplete="current-password" required>
+      <label>New password</label><input id="st-new" type="password" autocomplete="new-password" minlength="8" required>
+      <label>Repeat new password</label><input id="st-new2" type="password" autocomplete="new-password" minlength="8" required>
+      <span></span><div><button class="act">Change password</button></div>
+    </form>
+    <p class="muted">Changing your password logs out your other sessions too.</p></div>
+  <div class="card acctcard"><h2>Admin accounts</h2>
+    <table><thead><tr><th>User name</th><th></th></tr></thead><tbody id="st-users"></tbody></table>
+    <h3 style="color:var(--navy);margin:16px 0 8px">Add an admin account</h3>
+    <form class="grid" onsubmit="addAdmin(event)">
+      <label>User name</label><input id="st-au" autocomplete="off" maxlength="32" required>
+      <label>Password</label><input id="st-ap" type="password" autocomplete="new-password" minlength="8" required>
+      <label>Repeat password</label><input id="st-ap2" type="password" autocomplete="new-password" minlength="8" required>
+      <span></span><div><button class="act">Add account</button></div>
+    </form>
+    <p class="muted">Every admin account has full access. You can't remove the account you are logged in
+      with, or the last one. Removing an account logs it out immediately. A forgotten password can be
+      reset on the server machine with <code>python admin.py set-password &lt;user&gt;</code> (in <code>server\</code>).</p></div>
+  </div>
+  <div class="card"><h2>Server processes</h2><div id="p-err" class="bad"></div>
+    <table><thead><tr><th>Process</th><th>State</th><th>PID</th><th>Started</th><th>Restarts</th><th></th></tr></thead><tbody id="p-list"></tbody></table>
+    <p class="muted">Crashed processes are restarted automatically after 5 s (not after a manual Stop).
+      Restarting "http" briefly takes this page offline. Full logs: <code>logs\&lt;name&gt;.log</code>.</p>
+    <div class="actions"><button class="act danger" onclick="shutdownServer()">Shut down server</button>
+      <span class="muted">Stops every process, including this admin page and the public page. Start it again
+        on the server machine with <code>start_background.bat</code>.</span></div></div>
+  <div class="card"><h2>Log</h2>
+    <div class="row" style="align-items:center;margin-bottom:8px">
+      <select id="l-name" onchange="resetLog()"></select>
+      <input id="l-filter" placeholder="filter (text or /regex/)" oninput="renderLog()" style="flex:1;min-width:200px">
+      <label><input type="checkbox" id="l-noecho" checked onchange="renderLog()"> hide echo/keep-alive &amp; level headers</label>
+      <label><input type="checkbox" id="l-follow" checked> follow</label>
+      <button class="sub" onclick="logLines=[];renderLog()">clear view</button></div>
+    <pre id="l-out" class="log"></pre></div>
+</section>
+
+</main>
+<div id="toast"></div>
+<script>
+const TABS = [["status","Status"],["daily","Daily Tournaments"],["rulesets","Rule Sets"],["series","Series"],["lobby","Lobby Layout"],["texts","News & Agreement"],["scores","Scores"],["settings","Settings"]];
+// old links to the Servers & Logs tab land on Settings, where that part now lives
+const TAB_ALIAS = {servers: "settings"};
+let S = null, G = null;          // settings, gamedata
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function toast(msg, bad) { const t=$("toast"); t.textContent=msg; t.className=bad?"bad":"ok"; t.style.display="block"; setTimeout(()=>t.style.display="none", 4000); }
+async function api(path, opt = {}) {
+  opt.headers = {"X-HSG6": "1", ...(opt.headers || {})};
+  const r = await fetch(path, opt);
+  if (r.status === 401) { location.replace("/login"); throw new Error("login required"); }
+  const j = await r.json(); if (!r.ok) throw new Error(j.error || r.status); return j;
+}
+async function shutdownServer() {
+  const n = lastStatus ? lastStatus.user_count : 0;
+  if (prompt(`Shut down the whole server?${n ? ` ${n} player(s) are online and will be disconnected.` : ""}\n` +
+             `Everything stops, including this page. Type SHUTDOWN to confirm:`) !== "SHUTDOWN") return;
+  try { await api("/api/shutdown", {method: "POST"}); }
+  catch (e) { return toast("Shutdown failed: " + e.message, 1); }
+  document.body.innerHTML = `<main><div class="card" style="max-width:560px;margin:60px auto"><h2>Server shut down</h2>
+    <p>All server processes are stopping. To start them again, run <code>start_background.bat</code>
+    on the server machine, then reload this page.</p></div></main>`;
+}
+async function logout() { await api("/api/logout", {method: "POST"}); location.replace("/login"); }
+const jpost = (path, body, method = "POST") => api(path, {method, headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
+async function changePassword(e) {
+  e.preventDefault();
+  if ($("st-new").value !== $("st-new2").value) return toast("The new passwords differ - nothing changed", 1);
+  try { await jpost("/api/password", {old: $("st-old").value, new: $("st-new").value});
+        alert("Password changed. Please log in again."); location.replace("/login"); }
+  catch (err) { toast("Not changed: " + err.message, 1); }
+}
+async function loadAdmins() {
+  const r = await api("/api/admins");
+  $("st-me").textContent = r.me;
+  $("whoami").textContent = "\u{1F464} " + r.me;
+  $("st-users").innerHTML = r.users.map(u => `<tr><td><b>${esc(u)}</b>${u === r.me ? ` <span class="pill">you</span>` : ""}</td>
+    <td style="text-align:right">${u === r.me || r.users.length < 2 ? "" :
+      `<button class="del" onclick="removeAdmin('${encodeURIComponent(u)}')">remove</button>`}</td></tr>`).join("");
+}
+async function addAdmin(e) {
+  e.preventDefault();
+  if ($("st-ap").value !== $("st-ap2").value) return toast("The passwords differ", 1);
+  try { await jpost("/api/admins", {user: $("st-au").value, password: $("st-ap").value});
+        toast(`Added ${$("st-au").value}`); e.target.reset(); loadAdmins(); }
+  catch (err) { toast("Not added: " + err.message, 1); }
+}
+async function removeAdmin(u) {
+  u = decodeURIComponent(u);
+  if (!confirm(`Remove the admin account "${u}"? It is logged out immediately.`)) return;
+  try { await api("/api/admins?user=" + encodeURIComponent(u), {method: "DELETE"}); toast(`Removed ${u}`); loadAdmins(); }
+  catch (err) { toast("Not removed: " + err.message, 1); }
+}
+
+function show(tab) {
+  tab = TAB_ALIAS[tab] || tab;
+  document.querySelectorAll("section").forEach(s => s.classList.toggle("on", s.id === tab));
+  document.querySelectorAll("nav button").forEach(b => b.classList.toggle("on", b.dataset.t === tab));
+  history.replaceState(null, "", "#" + tab);   // no scroll jump (location.hash would scroll to the section)
+  if (tab === "daily") loadCalendar();
+  if (tab === "scores") loadScores();
+  if (tab === "settings") { loadAdmins(); loadProcs().then(pollLog); }
+
+}
+$("nav").innerHTML = TABS.map(([id, n]) => `<button data-t="${id}" onclick="show('${id}')">${n}</button>`).join("") +
+  `<a id="publink" class="navlink" target="_blank" rel="noopener" title="Opens the public status page in a new tab">Public page ↗</a>` +
+  `<button class="logout" onclick="logout()">Log out</button>`;
+
+// ---------- status ----------
+async function loadStatus() {
+  try {
+    const s = await api("/api/status");
+    lastStatus = s; renderSeriesCurrent();
+    $("publink").style.display = s.public_port ? "" : "none";   // HSG6_PUBLIC_PORT=0 disables the page
+    $("publink").href = `${location.protocol}//${location.hostname}:${s.public_port}/`;
+    $("hdr").innerHTML = `🕘 ${esc(s.server_time_jst.slice(0, 16).replace("T", "  "))} JST<small>${s.day_offset ? "clock shifted " + s.day_offset + " day(s) · " : ""}${s.user_count} player(s) online</small>`;
+    $("s-users").textContent = s.user_count;
+    $("s-tours").innerHTML = s.tournaments_today.length ? `<ul class="tlist">` + s.tournaments_today.map(t => {
+      const rs = S && S.rulesets[t.ruleset], name = n => ((G && G[n]) || []);
+      const course = rs ? (name("courses").find(c => c.id == rs.course) || {}).name : "";
+      const holes = rs ? (name("holes_modes").find(h => h.value == rs.holes) || {}).name : "";
+      return `<li><span class="slot">${t.slot}</span><span>${esc(t.label)}` +
+        (course ? `<small>${esc(course)} · ${esc(holes)}</small>` : "") + `</span></li>`;
+    }).join("") + `</ul>` : "none";
+    $("s-series").innerHTML = `${esc(s.series.name)}<small class="dates">${esc(s.series.start)} → ${esc(s.series.end)}</small>`;
+    $("s-medius").textContent = s.medius_error || "";
+    $("s-userlist").innerHTML = s.users.map(u => `<tr><td><b>🎮 ${esc(pname(u.name))}</b></td><td>${esc(u.where)}</td><td class="muted">${u.accountId}</td></tr>`).join("") || `<tr><td colspan=3 class="empty">Nobody online</td></tr>`;
+    const tree = Object.entries(s.tree);
+    $("s-tree").innerHTML = tree.length ? tree.map(([c, cv]) => `<div class="tree-club">${frame("clubhouse", clubImg(cv.club_i), 110)}
+      <div style="flex:1"><div class="count" style="font-size:16px">${esc(c)} Clubhouse <span class="pill">${cv.count}</span></div>` +
+      Object.entries(cv.floors).map(([f, fv]) => `<div class="tree-floor"><img class="thumb" src="${floorImg(cv.club_i, fv.floor_i)}">
+        <span class="count">${esc(f)} Floor</span> <span class="pill">${fv.count}</span></div>` +
+        Object.entries(fv.lobbies).map(([l, lv]) => `<div class="tree-lobby"><img class="thumb" style="width:54px;height:36px" src="${lobbyImg(lv.map)}">
+          ${esc(l)} <span class="pill ok">${lv.count}</span> <span class="muted">${esc(lv.players.map(pname).join(", "))}</span></div>`).join("")).join("") +
+      `</div></div>`).join("") : `<div class="empty">No occupied lobbies</div>`;
+    $("s-rooms").innerHTML = s.rooms.map(g => `<tr><td>${esc(g.name)}</td><td>${esc(pname(g.host))}</td><td>${g.playerCount}/${g.maxPlayers} ${esc(g.players.map(pname).join(", "))}</td><td class="muted">${esc(g.status)}</td></tr>`).join("") || `<tr><td colspan=4 class="muted">none</td></tr>`;
+    $("s-act").innerHTML = Object.entries(s.http_activity.players).sort((a,b)=>b[1].last.localeCompare(a[1].last))
+      .map(([p, v]) => `<tr><td>${esc(pname(p))}</td><td>${esc(v.endpoint)}</td><td>${esc(v.last)}</td><td>${v.count}</td></tr>`).join("") || `<tr><td colspan=4 class="muted">no requests since the server started</td></tr>`;
+  } catch (e) { $("hdr").textContent = "status error: " + e.message; }
+}
+
+// ---------- servers & logs ----------
+let logLines = [], logLast = 0;
+async function loadProcs() {
+  try {
+    const ps = await api("/api/procs");
+    if (ps.error) { $("p-err").textContent = ps.error; $("p-list").innerHTML = ""; return; }
+    $("p-err").textContent = "";
+    $("p-list").innerHTML = ps.map(p => `<tr><td><b>${p.name}</b></td>
+      <td><span class="pill ${p.running?'ok':'bad'}">${p.running ? "running" : (p.wanted ? "down" : "stopped")}</span>${p.exit_code!=null && !p.running ? " <span class='muted'>exit "+p.exit_code+"</span>" : ""}</td>
+      <td>${p.pid ?? ""}</td><td class="muted">${p.started ?? ""}</td><td>${p.restarts}</td>
+      <td>${["start","stop","restart"].map(a => `<button class="sub" onclick="procAct('${p.name}','${a}')">${a}</button>`).join(" ")}</td></tr>`).join("");
+    const sel = $("l-name");
+    if (!sel.options.length) { sel.innerHTML = ps.map(p => `<option>${p.name}</option>`).join(""); }
+  } catch (e) { $("p-err").textContent = "admin unreachable: " + e.message; }
+}
+async function procAct(name, action) {
+  if (action !== "start" && !confirm(`${action} ${name}?`)) return;
+  await api(`/api/proc?name=${name}&action=${action}`, {method:"POST"}).catch(()=>{});
+  toast(`${action} ${name} requested`); setTimeout(loadProcs, 2000);
+}
+function resetLog() { logLines = []; logLast = 0; pollLog(); }
+async function pollLog() {
+  const name = $("l-name").value; if (!name || !$("settings").classList.contains("on")) return;
+  try {
+    const r = await api(`/api/log?name=${name}&after=${logLast}&max=2000`);
+    if (r.error || name !== $("l-name").value) return;
+    logLast = r.last; logLines.push(...r.lines.map(l => l[1])); logLines = logLines.slice(-5000);
+    if (r.lines.length) renderLog();
+  } catch (e) {}
+}
+const ECHO = /ECHO|ScertServerHandler\[0\]$|^\S+ dbug: Server\.Pipeline\.Tcp\.ScertEncoder\[0\]$|^\S+ (dbug|info|warn): [\w.]+\[0\]$/;
+function renderLog() {
+  let f = $("l-filter").value, re = null;
+  if (f.length > 2 && f.startsWith("/") && f.endsWith("/")) { try { re = new RegExp(f.slice(1, -1), "i"); } catch (e) {} }
+  const noEcho = $("l-noecho").checked;
+  const out = logLines.filter(l => (!noEcho || !ECHO.test(l)) && (!f || (re ? re.test(l) : l.toLowerCase().includes(f.toLowerCase()))));
+  const pre = $("l-out"); const atBottom = pre.scrollTop + pre.clientHeight >= pre.scrollHeight - 30;
+  pre.textContent = out.join("\n");
+  if ($("l-follow").checked || atBottom) pre.scrollTop = pre.scrollHeight;
+}
+setInterval(() => { if ($("settings").classList.contains("on")) { loadProcs(); pollLog(); } }, 2000);
+
+// The game logs in to Medius with its name plus a trailing "#" (e.g. "Ninetime#"); scores are stored
+// under that exact name, so it is only hidden for display.
+const pname = n => String(n ?? "").replace(/#$/, "");
+
+// ---------- artwork (admin/img, extracted from the game's lobby-select screen) ----------
+const clubImg = ci => `img/club_${Math.min(+ci || 0, 2)}.jpg`;
+const floorImg = (ci, fi) => `img/floor_${Math.min((+ci || 0) * 10 + (+fi || 0), 23)}.jpg`;
+const lobbyImg = map => `img/lobby_${Math.max(0, Math.min((+map || 8) - 8, 6))}.jpg`;
+const frame = (kind, pic, w) => `<div class="frame" style="--w:${w}px"><div class="pic" style="background-image:url(${pic})"></div><img src="img/icon_${kind}.png" alt="${kind}"></div>`;
+
+// ---------- shared option helpers ----------
+const opt = (list, val, key="value") => list.map(o => `<option value="${o[key]}" ${o[key]==val?"selected":""}>${esc(o.name)}</option>`).join("");
+const anyOpt = (list, val) => `<option value="255" ${val==255?"selected":""}>Any</option>` + opt(list, val);
+const rulesetOpts = val => Object.entries(S.rulesets).map(([id, r]) => `<option value="${id}" ${id==val?"selected":""}>${esc(r.label||id)} (${esc(id)})</option>`).join("");
+function isOfficial(rs) { const u = id => (G.rules.find(r => r.id == id) || {}).unofficial; return !u(rs.rule1) && !u(rs.rule2); }
+
+// ---------- daily ----------
+function dayEditor(list, path) {
+  // one tournament per day (the game only offers a single current Daily board)
+  if (!list.length) list.push({slot: 1, ruleset: Object.keys(S.rulesets)[0]});
+  const t = list[0];
+  return `<div class="grid"><label>Rule set</label>
+    <select onchange="${path}[0].ruleset=this.value;${path}[0].slot=1">${rulesetOpts(t.ruleset)}</select></div>`;
+}
+function renderDaily() {
+  $("d-default").innerHTML = dayEditor(S.daily.default, "S.daily.default");
+  const ov = Object.keys(S.daily.overrides).sort();
+  $("d-overrides").innerHTML = ov.map(d => `<div class="card"><b>${d}</b> <button class="del" onclick="delete S.daily.overrides['${d}'];renderDaily()">delete override</button>` +
+    dayEditor(S.daily.overrides[d], `S.daily.overrides['${d}']`) + "</div>").join("") || `<span class="muted">none</span>`;
+}
+function addOverride() { const d = $("d-newdate").value; if (!d) return toast("pick a date", 1);
+  S.daily.overrides[d] = JSON.parse(JSON.stringify(S.daily.default)); renderDaily(); }
+async function loadCalendar() {
+  const c = await api("/api/calendar?days=14");
+  $("d-cal").innerHTML = c.map(d => `<tr><td>${d.date}${d.override?' <span class="pill">override</span>':''}</td><td>${esc(d.series)}</td><td>${d.tournaments.map(t=>esc((S.rulesets[t.ruleset]||{}).label||t.ruleset)).join(", ")}</td></tr>`).join("");
+}
+
+// ---------- rule sets ----------
+let curRS = null;                 // rule set shown in the editor
+let showAdv = false;              // advanced raw bytes hidden unless asked for
+function renderRulesets() {
+  const ids = Object.keys(S.rulesets);
+  if (!S.rulesets[curRS]) curRS = ids[0];
+  const id = curRS, r = S.rulesets[id];
+  const p = `S.rulesets['${id}']`;
+  const sel = (k, html) => `<select onchange="${p}.${k}=+this.value;renderRulesets()">${html}</select>`;
+  const ruleSel = k => sel(k, opt(G.rules.map(x => ({value:x.id, name:x.name + (x.unofficial?" (unofficial)":"")})), r[k]));
+  const used = [S.daily.default, ...Object.values(S.daily.overrides)].flat().filter(t => t.ruleset === id).length;
+  $("r-list").innerHTML = `<div class="card"><h2>Rule set
+      <select onchange="curRS=this.value;renderRulesets()" style="font-weight:700">${ids.map(k =>
+        `<option value="${esc(k)}" ${k==id?"selected":""}>${esc(S.rulesets[k].label||k)} (${esc(k)})</option>`).join("")}</select>
+      <span class="pill ${isOfficial(r)?'ok':'bad'}">${isOfficial(r)?"Official":"Unofficial"}</span>
+      <span class="muted" style="font-weight:600">${used ? `used by ${used} day setting(s)` : "not scheduled"}</span>
+      <span style="flex:1"></span>
+      <button class="sub" onclick="newRuleset()">New</button>
+      <button class="sub" onclick="resetRuleset('${id}')">Reset to default</button>
+      <button class="del" onclick="delRuleset('${id}')">Delete</button></h2>
+      <div class="grid">
+        <label>Name (admin only)</label><input value="${esc(r.label||"")}" onchange="${p}.label=this.value;renderRulesets();renderDaily()">
+        <label>Course</label>${sel("course", opt(G.courses, r.course, "id"))}
+        <label>Holes</label>${sel("holes", opt(G.holes_modes, r.holes))}
+        <label>Tee</label>${sel("tee", opt(G.tees, r.tee))}
+        <label>Special rule 1</label>${ruleSel("rule1")}
+        <label>Special rule 2</label>${ruleSel("rule2")}
+        <label>Extra rule 3</label>${ruleSel("rule3")}
+        <label>Extra rule 4</label>${ruleSel("rule4")}
+        <label>Character</label>${sel("character", anyOpt(G.characters, r.character))}
+        <label>Club</label>${sel("club", anyOpt(G.clubs, r.club))}
+        <label>Ball</label>${sel("ball", anyOpt(G.balls, r.ball))}
+        <label></label><label style="font-weight:600"><input type="checkbox" ${showAdv?"checked":""}
+          onchange="showAdv=this.checked;renderRulesets()"> Show advanced (raw regulation bytes)</label>
+        ${showAdv ? `<label>Advanced (raw bytes)</label><input style="width:100%" value='${esc(JSON.stringify(r.advanced||{}))}'
+          onchange="try{${p}.advanced=JSON.parse(this.value)}catch(e){toast('invalid JSON',1)}">
+        <label></label><div class="bad" style="font-weight:600">Unknown fields kept at values known to work. Changing them may
+          break the tournament or crash the game; "Reset to default" restores them.</div>` : ""}
+      </div>
+      <p class="muted">A tournament is Official only when special rules 1 and 2 are official rules
+        (Real Golf Mode, wind/weather rules etc. are unofficial). "3 holes"/"6 holes" play correctly but
+        the confirmation screen labels them as 9 holes.</p></div>`;
+}
+// ---------- reset to defaults (edits the page only; Save applies) ----------
+const clone = o => JSON.parse(JSON.stringify(o));
+async function defaults() { return api("/api/defaults"); }
+async function resetRulesets() {
+  const D = await defaults();
+  const keep = Object.keys(D.rulesets), fallback = keep[0];
+  const days = [S.daily.default, ...Object.values(S.daily.overrides)];
+  const moved = days.flat().filter(t => !keep.includes(t.ruleset)).length;
+  if (!confirm("Replace ALL rule sets with the defaults (" + keep.join(", ") + ")?" +
+      (moved ? `\n\n${moved} daily tournament(s) use rule sets that will be removed; they will be switched to "${fallback}".` : "") +
+      "\n\nNothing changes in game until you press Save.")) return;
+  S.rulesets = clone(D.rulesets);
+  days.forEach(day => day.forEach(t => { if (!keep.includes(t.ruleset)) t.ruleset = fallback; }));
+  renderRulesets(); renderDaily(); toast("Default rule sets loaded - press Save to apply");
+}
+async function resetRuleset(id) {
+  const D = await defaults();
+  const base = D.rulesets[id] || Object.values(D.rulesets)[0];
+  if (!confirm(`Reset the settings of "${S.rulesets[id].label || id}" to the default values?\n(The id is kept; press Save to apply.)`)) return;
+  S.rulesets[id] = {...clone(base), label: D.rulesets[id] ? base.label : (S.rulesets[id].label || id)};
+  renderRulesets(); toast("Defaults loaded - press Save to apply");
+}
+async function resetLobby() {
+  const D = await defaults();
+  if (!confirm("Replace the whole lobby layout (clubhouses, floors, lobbies) with the default?\n\nNothing changes until you press Save.")) return;
+  S.lobby = clone(D.lobby); renderLobby(); toast("Default lobby layout loaded - press Save & rebuild to apply");
+}
+
+async function newRuleset() {
+  const name = (prompt("Name of the new rule set (e.g. Sakura Mirror):") || "").trim();
+  if (!name) return;
+  let id = name.toLowerCase().replace(/[^\w-]+/g, "_").replace(/^_+|_+$/g, "") || "ruleset";
+  for (let n = 2; S.rulesets[id]; n++) id = id.replace(/_\d+$/, "") + "_" + n;
+  const D = await defaults();                       // new rule sets start from the default values
+  S.rulesets[id] = {...clone(D.rulesets.standard || Object.values(D.rulesets)[0]), label: name};
+  curRS = id; renderRulesets(); renderDaily(); toast(`"${name}" created with default values - press Save to keep it`);
+}
+function delRuleset(id) {
+  const used = [...S.daily.default, ...Object.values(S.daily.overrides).flat()].some(t => t.ruleset === id);
+  if (used) return toast("rule set is used by a daily tournament", 1);
+  if (Object.keys(S.rulesets).length < 2) return toast("at least one rule set is required", 1);
+  if (!confirm(`Delete rule set "${S.rulesets[id].label || id}"? (press Save to apply)`)) return;
+  delete S.rulesets[id]; curRS = null; renderRulesets(); renderDaily(); }
+
+// ---------- series ----------
+function renderSeries() {
+  renderSeriesCurrent();
+  $("se-list").innerHTML = S.series.map((s, i) => `<tr>
+    <td><input value="${esc(s.id)}" onchange="S.series[${i}].id=this.value"></td>
+    <td><input value="${esc(s.name)}" onchange="S.series[${i}].name=this.value"></td>
+    <td><input type="date" value="${s.start}" onchange="S.series[${i}].start=this.value"></td>
+    <td><input type="date" value="${s.end}" onchange="S.series[${i}].end=this.value"></td>
+    <td><button class="del" onclick="S.series.splice(${i},1);renderSeries()">remove</button></td></tr>`).join("") || `<tr><td colspan=5 class="muted">none (calendar months)</td></tr>`;
+}
+let lastStatus = null;
+function renderSeriesCurrent() {
+  const el = $("se-current"); if (!el || !lastStatus || !S) return;
+  const cur = lastStatus.series, configured = S.series.some(x => x.id === cur.id);
+  el.innerHTML = `<div class="grid" style="grid-template-columns:120px 1fr">
+      <label>Name</label><b>${esc(cur.name)}</b>
+      <label>Dates (JST)</label><span>${esc(cur.start)} → ${esc(cur.end)}</span>
+      <label>Source</label><span>${configured ? "configured series (listed below)"
+        : `automatic calendar month (no series covers today)
+           <button class="sub" style="margin-left:8px" onclick="adoptCurrentSeries()">Make it an editable series</button>`}</span></div>`;
+}
+function adoptCurrentSeries() {
+  const cur = lastStatus.series;
+  S.series.push({id: cur.id, name: cur.name, start: cur.start, end: cur.end});
+  renderSeries(); renderSeriesCurrent(); toast("Added - adjust it and press Save");
+}
+function addSeries() { const d = new Date().toISOString().slice(0,10); S.series.push({id:"tour-"+d, name:"New Tour", start:d, end:d}); renderSeries(); }
+
+// ---------- lobby ----------
+function renderLobby() {
+  $("l-clubs").innerHTML = S.lobby.clubhouses.map((c, ci) => {
+    const p = `S.lobby.clubhouses[${ci}]`;
+    return `<div class="card"><h2>${esc(c.name)} Clubhouse
+      <button class="del" onclick="S.lobby.clubhouses.splice(${ci},1);renderLobby()">remove</button></h2>
+      <div class="clubhead">${frame("clubhouse", clubImg(ci), 150)}
+        <div class="grid" style="grid-template-columns:120px 1fr"><label>Clubhouse name</label>
+          <input value="${esc(c.name)}" onchange="${p}.name=this.value;renderLobby()"></div></div>
+      <div class="row" style="margin-top:12px"><div style="flex:1;min-width:280px">${frame("floor", floorImg(ci, 0), 90)}<table>
+      <thead><tr><th>#</th><th></th><th>Floor name</th><th></th></tr></thead>` +
+      c.floors.map((f, fi) => `<tr><td>${fi+1}</td><td><img class="thumb" src="${floorImg(ci, fi)}"></td><td><input value="${esc(f)}" onchange="${p}.floors[${fi}]=this.value"></td>
+        <td><button class="del" onclick="${p}.floors.splice(${fi},1);renderLobby()">remove</button></td></tr>`).join("") +
+      `</table><button class="sub" onclick="${p}.floors.push('New floor');renderLobby()">Add floor</button></div>
+      <div style="flex:1;min-width:360px">${frame("lobby", lobbyImg((c.lobbies[0] || {}).map), 90)}<span class="muted">(lobbies are shared by every floor)</span>
+        <table><thead><tr><th>#</th><th>Map</th><th>Name</th><th>Map no.</th><th>Capacity</th><th></th></tr></thead>` +
+      c.lobbies.map((l, li) => `<tr><td>${li+1}</td><td><img class="thumb" src="${lobbyImg(l.map)}"></td><td><input value="${esc(l.name)}" onchange="${p}.lobbies[${li}].name=this.value"></td>
+        <td><select onchange="${p}.lobbies[${li}].map=+this.value;renderLobby()">${[8,9,10,11,12,13].map(m=>`<option ${m==l.map?"selected":""}>${m}</option>`).join("")}</select></td>
+        <td><input type="number" value="${l.capacity}" onchange="${p}.lobbies[${li}].capacity=+this.value"></td>
+        <td><button class="del" onclick="${p}.lobbies.splice(${li},1);renderLobby()">remove</button></td></tr>`).join("") +
+      `</table><button class="sub" onclick="${p}.lobbies.push({name:'Lobby ${c.lobbies.length+1}',map:8,capacity:30});renderLobby()">Add lobby</button></div></div></div>`;
+  }).join("");
+}
+function addClub() { S.lobby.clubhouses.push({name:"New", floors:["1F"], lobbies:[{name:"Lobby 1", map:8, capacity:30}]}); renderLobby(); }
+
+// ---------- texts ----------
+const _prevTimers = {};
+function preview(id, text, width, title) {   // exact server-side wrap, debounced
+  clearTimeout(_prevTimers[id]);
+  _prevTimers[id] = setTimeout(async () => {
+    try {
+      const r = await api("/api/wrap", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({text, width})});
+      const el = $(id); if (!el) return;
+      if (title == null) { el.style.width = `calc(${width}ch + 18px)`; el.textContent = r.text || " "; return; }
+      // news: mirror the game's own layout (3 / 5 full-width spaces of indent, see settings.news_items)
+      el.style.width = `calc(${width + 10}ch + 18px)`;
+      const fw = n => "　".repeat(n);
+      el.textContent = fw(3) + title + "\n\n" + (r.text || "").split("\n").map(l => fw(5) + l).join("\n");
+    } catch (e) {}
+  }, 250);
+}
+function newsTitle(t) {
+  const m = S.format.news_title_marker ?? "", s = String(t || "").trim().replace(/\s+/g, " ");
+  return m && !s.startsWith(m.trim()) ? m + s : s;
+}
+function renderNewsPreviews() { S.news.forEach((n, i) => preview(`t-nprev${i}`, n.body, S.format.news_width, newsTitle(n.title))); }
+function renderTexts() {
+  S.format = S.format || {news_width: 60, eula_width: 34};
+  if (S.format.news_title_marker == null) S.format.news_title_marker = "■ ";
+  $("t-marker").value = S.format.news_title_marker;
+  $("t-news").innerHTML = S.news.map((n, i) => `<div class="card"><div class="grid">
+    <label>Title</label><input value="${esc(n.title)}" oninput="S.news[${i}].title=this.value;renderNewsPreviews()">
+    <label>Body</label><textarea oninput="S.news[${i}].body=this.value;renderNewsPreviews()">${esc(n.body)}</textarea>
+    <label>In-game preview</label><pre id="t-nprev${i}" class="prev"></pre></div>
+    <button class="del" onclick="S.news.splice(${i},1);renderTexts()">remove</button></div>`).join("");
+  renderNewsPreviews();
+  $("t-ever").value = S.eula.version; $("t-etext").value = S.eula.text;
+  $("t-ever").onchange = e => S.eula.version = +e.target.value;
+  preview("t-eprev", S.eula.text, S.format.eula_width);
+}
+
+// ---------- scores ----------
+async function loadScores() {
+  const db = await api("/api/scores");
+  const boards = Object.keys(db).sort().reverse();
+  $("sc-list").innerHTML = boards.map(b => {
+    const rows = Object.entries(db[b]).sort((x, y) => x[1].score - y[1].score);
+    return `<div class="card"><h2>${esc(b)} <span class="muted">${rows.length} player(s)</span>
+      <button class="del" onclick="delScore('${b}')">delete board</button></h2><table>
+      <thead><tr><th>Player</th><th>Score</th><th>Points</th><th>Uploaded</th><th></th></tr></thead>` +
+      rows.map(([p, e]) => `<tr><td>${esc(pname(p))}</td><td>${e.score>0?"+":""}${e.score}</td><td>${e.points}</td><td class="muted">${esc(e.t||"")}</td>
+        <td><button class="del" onclick="delScore('${b}','${encodeURIComponent(p)}')">delete</button></td></tr>`).join("") + "</table></div>";
+  }).join("") || `<span class="muted">no results yet</span>`;
+}
+async function delScore(b, p) {
+  if (!confirm(p ? `Delete ${pname(decodeURIComponent(p))}'s result on ${b}?` : `Delete all results of ${b}?`)) return;
+  await api(`/api/scores?board=${encodeURIComponent(b)}` + (p ? `&player=${p}` : ""), {method:"DELETE"}); loadScores(); }
+
+// ---------- load / save ----------
+function renderAll() { renderDaily(); renderRulesets(); renderSeries(); renderLobby(); renderTexts(); }
+async function load() { [S, G] = await Promise.all([api("/api/settings"), api("/api/gamedata")]); renderAll(); }
+async function saveSettings() {
+  try { const r = await api("/api/settings", {method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify(S)});
+    toast("Saved" + (r.lobby_rebuilt ? " (lobby layout rebuilt)" : "")); await load(); loadCalendar(); loadStatus(); }
+  catch (e) { toast("Not saved: " + e.message, 1); }
+}
+
+load().then(() => { show(location.hash.slice(1) || "status"); window.scrollTo(0, 0); loadAdmins(); });
+loadStatus(); setInterval(loadStatus, 5000);
+</script>
+</body>
+</html>
