@@ -1,7 +1,7 @@
 """Extract course / rule names and rule flags from the installed game into data/gamedata.json.
 
 Usage: python tools/extract_gamedata.py <USRDIR>
-  USRDIR = .../dev_hdd0/game/NPUA80864/USRDIR
+  USRDIR = <RPCS3 folder>/dev_hdd0/game/NPUA80864/USRDIR
 Sources: xbdata/menu/message_text.US_01.xb (FB archive of TO1 text tables)
          appdata/Rule_Rule.txt (rule table; column 'Official')
 """
@@ -90,4 +90,6 @@ def main(usrdir):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1] if len(sys.argv) > 1 else r"D:\Games\rpcs3\dev_hdd0\game\NPUA80864\USRDIR")
+    if len(sys.argv) != 2:
+        sys.exit(__doc__)
+    main(sys.argv[1])

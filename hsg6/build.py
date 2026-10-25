@@ -3,7 +3,7 @@
 Usage: python build.py [--usrdir USRDIR] [--skip-horizon]
 
   --usrdir USRDIR   also extract the game-derived files from an installed copy of the game
-                    (e.g. D:/Games/rpcs3/dev_hdd0/game/NPUA80864/USRDIR) and build appdata.xb
+                    (<RPCS3 folder>/dev_hdd0/game/NPUA80864/USRDIR) and build appdata.xb
                     and ss.info. Without it only the Horizon servers are built.
   --skip-horizon    only do the --usrdir step.
 
@@ -89,8 +89,14 @@ def game_data(usrdir):
     if not os.path.isdir(usrdir):
         sys.exit(f"USRDIR not found: {usrdir}")
     server = os.path.join(ROOT, "server")
-    for script in ("tools/extract_appdata.py", "tools/extract_gamedata.py", "tools/extract_admin_images.py"):
+    for script in ("tools/extract_appdata.py", "tools/extract_gamedata.py"):
         run([sys.executable, script, usrdir], cwd=server)
+    try:  # the admin/public page images are optional and need Pillow
+        import PIL  # noqa: F401
+        run([sys.executable, "tools/extract_admin_images.py", usrdir], cwd=server)
+    except ImportError:
+        print("Pillow is not installed, so the admin page images were skipped. Install it with "
+              "'pip install pillow', then run: python build.py --skip-horizon --usrdir <USRDIR>")
     if not os.path.exists(os.path.join(server, "appdata", "lobby.csv")):  # keep an existing layout
         run([sys.executable, "-c", "import settings; settings.write_lobby_csvs()"], cwd=server)
     run([sys.executable, "make_appdata.py"], cwd=server)

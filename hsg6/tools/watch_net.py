@@ -1,7 +1,9 @@
 """Poll HSG6's network-state object over PINE and log field changes (lobby join debugging)."""
 import struct, sys, time
-sys.path.insert(0, r"E:\IT\tools")
-import rpcs3_ipc as r
+try:
+    import rpcs3_ipc as r  # PINE client module; put its folder on PYTHONPATH
+except ImportError:
+    sys.exit("watch_net.py needs rpcs3_ipc.py (a PINE client for RPCS3's IPC server) on PYTHONPATH.")
 
 e = r.RPCS3()
 r32 = lambda a: struct.unpack(">I", e.read_bytes(a, 4))[0]

@@ -40,7 +40,7 @@ calls its result handler), not a server bug. See
 
 - A legally obtained copy of the game (**NPUA80864**, updated to **v01.03**) installed in
   [RPCS3](https://rpcs3.net). Some of the server's data files are extracted from it.
-- Python 3.10 or newer (standard library only).
+- Python 3.10 or newer. The server itself only uses the standard library; [Pillow](https://pypi.org/project/pillow/) (`pip install pillow`) is optional and only used to extract the admin page images.
 - The [.NET 10 SDK](https://dotnet.microsoft.com/download) and [git](https://git-scm.com/), to
   build the Medius servers.
 - Windows. The `.bat` scripts and the supervisor assume it, but the Python and .NET parts are

@@ -1,6 +1,6 @@
 """Extract artwork for the admin page from an installed copy of the game into admin/img/.
 
-Usage: python tools/extract_admin_images.py [USRDIR]      (needs Pillow: pip install pillow)
+Usage: python tools/extract_admin_images.py <USRDIR>      (needs Pillow: pip install pillow)
 Source: xbdata/menu/online_menu/choose_lobby/choose_lobby.US_01.xb (lobby-select screen):
   choose_lobby_bg  -> bg.jpg            sky / cloud background
   choose_lobby     -> icon_clubhouse/floor/lobby.png  (atlas regions layer_icon001-003)
@@ -70,4 +70,6 @@ def main(usr):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1] if len(sys.argv) > 1 else r"D:\Games\rpcs3\dev_hdd0\game\NPUA80864\USRDIR")
+    if len(sys.argv) != 2:
+        sys.exit(__doc__)
+    main(sys.argv[1])

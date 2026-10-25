@@ -1,7 +1,7 @@
 """Regenerate the game-derived files in appdata/ from an installed copy of the game.
 
-Usage: python tools/extract_appdata.py [USRDIR]
-  USRDIR defaults to D:/Games/rpcs3/dev_hdd0/game/NPUA80864/USRDIR
+Usage: python tools/extract_appdata.py <USRDIR>
+  USRDIR = <RPCS3 folder>/dev_hdd0/game/NPUA80864/USRDIR
 
 Writes:
   appdata/Rule_Rule.txt                          rule table (221 rows) from xbdata/chara_localize/chara_param.xb
@@ -68,4 +68,6 @@ def main(usr):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1] if len(sys.argv) > 1 else r"D:\Games\rpcs3\dev_hdd0\game\NPUA80864\USRDIR")
+    if len(sys.argv) != 2:
+        sys.exit(__doc__)
+    main(sys.argv[1])
