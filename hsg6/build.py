@@ -62,16 +62,23 @@ def fetch_horizon():
         run(["git", "checkout", "-q", HORIZON_COMMIT], cwd=HORIZON)
 
 
+def git_apply_ok(*args):
+    return subprocess.run(["git", "apply", "--check", *args, PATCH], cwd=HORIZON, capture_output=True).returncode == 0
+
+
 def patch_horizon():
-    already = subprocess.run(["git", "apply", "--reverse", "--check", PATCH], cwd=HORIZON,
-                             capture_output=True).returncode == 0
-    if already:
-        print("Horizon patch already applied")
-        return
-    if subprocess.run(["git", "apply", "--check", PATCH], cwd=HORIZON, capture_output=True).returncode:
-        sys.exit(f"docs/horizon-server.patch doesn't apply to {HORIZON}. It needs a clean checkout of "
-                 f"commit {HORIZON_COMMIT}; reset it with 'git checkout -- . && git clean -fd' there.")
-    run(["git", "apply", "--whitespace=nowarn", PATCH], cwd=HORIZON)
+    # Upstream stores many files with CRLF endings while this repo's copy of the patch is LF. Git on
+    # Windows converts when applying; elsewhere the context lines differ only in the line ending,
+    # so fall back to --ignore-whitespace.
+    for ws in ([], ["--ignore-whitespace"]):
+        if git_apply_ok("--reverse", *ws):
+            print("Horizon patch already applied")
+            return
+        if git_apply_ok(*ws):
+            run(["git", "apply", "--whitespace=nowarn", *ws, PATCH], cwd=HORIZON)
+            return
+    sys.exit(f"docs/horizon-server.patch doesn't apply to {HORIZON}. It needs a clean checkout of "
+             f"commit {HORIZON_COMMIT}; reset it with 'git checkout -- . && git clean -fd' there.")
 
 
 def build_horizon():
