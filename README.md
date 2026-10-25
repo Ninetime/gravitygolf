@@ -43,8 +43,9 @@ calls its result handler), not a server bug. See
 - Python 3.10 or newer. The server itself only uses the standard library; [Pillow](https://pypi.org/project/pillow/) (`pip install pillow`) is optional and only used to extract the admin page images.
 - The [.NET 10 SDK](https://dotnet.microsoft.com/download) and [git](https://git-scm.com/), to
   build the Medius servers.
-- Windows. The `.bat` scripts and the supervisor assume it, but the Python and .NET parts are
-  cross-platform.
+- Windows or Linux. On Linux, use `python3`, and `./start.sh` / `./stop.sh` (or the systemd
+  unit in `hsg6/linux/`) instead of the `.bat` scripts. The game data has to be extracted from the
+  installed game, so either copy the game folder to the server or run the extraction on your PC.
 
 With those in place, setup is a clone and one command:
 
@@ -52,7 +53,7 @@ With those in place, setup is a clone and one command:
 git clone --recursive https://github.com/Ninetime/gravitygolf.git
 cd gravitygolf/hsg6
 python build.py --usrdir <path to NPUA80864/USRDIR>
-start_background.bat
+start_background.bat        # Linux: ./start.sh
 ```
 
 See **[Building](https://github.com/Ninetime/gravitygolf/wiki/Building)** for the full instructions, what the build does, and first-run
