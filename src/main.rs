@@ -7,11 +7,15 @@ use anyhow::{Context, Result};
 use chrono::Utc;
 use openssl::ssl::{SslAcceptor, SslFiletype, SslMethod};
 use serde::{Deserialize, Serialize};
+use base64::{engine::general_purpose, Engine as _};
+use tokio::process::Command;
+use tokio::fs;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 use tracing::{error, info};
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
+use std::path::{Path, Component};
 
 // --- Data Structures  ---
 
@@ -168,6 +172,87 @@ fn log_request_details(log: &RequestLog) {
     info!("════════════════════════════════════════════════════════════════════════\n");
 }
 
+
+async fn route_request(request: &RequestInfo) -> String {
+    match request.path.as_str() {
+        // --- 1. Base64 encode ss.info ---
+        "/hsg6ps3/ss.info" => {
+            match fs::read("ss.info").await {
+                Ok(contents) => {
+                    let encoded = general_purpose::STANDARD.encode(contents);
+                    format!(
+                        "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {}\r\n\r\n{}",
+                        encoded.len(),
+                        encoded
+                    )
+                }
+                // Err(_) => "HTTP/1.1 404 NOT FOUND\r\n\r\nFile not found".to_string(),
+                Err(_) => "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 10\r\n\r\n<ss>0</ss>".to_string(),
+            }
+        }
+
+        // --- 2. Sanitized CGI execution ---
+        path if path.starts_with("/cgi-bin/") => {
+            let script_subpath = path.strip_prefix("/cgi-bin/").unwrap_or("");
+            
+            // SECURITY: Sanitize the path
+            if !is_path_safe(script_subpath) {
+                error!("Blocked malicious path attempt: {}", script_subpath);
+                return "HTTP/1.1 403 FORBIDDEN\r\n\r\nForbidden".to_string();
+            }
+
+            let script_path = format!("./cgi-bin/{}", script_subpath);
+            
+            match Command::new(&script_path)
+                .env("REQUEST_METHOD", &request.method)
+                .env("QUERY_STRING", &request.query)
+                .output()
+                .await 
+            {
+                Ok(out) => {
+                    let body = String::from_utf8_lossy(&out.stdout);
+                    // Pass through script headers if they exist, otherwise wrap in 200 OK
+                    if body.contains("Content-Type:") {
+                        format!("HTTP/1.1 200 OK\r\n{}", body)
+                    } else {
+                        format!(
+                            "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: {}\r\n\r\n{}",
+                            body.len(),
+                            body
+                        )
+                    }
+                }
+                Err(e) => {
+                    error!("CGI execution failed for {}: {:?}", script_path, e);
+                    "HTTP/1.1 500 INTERNAL SERVER ERROR\r\n\r\nCGI Error".to_string()
+                }
+            }
+        }
+
+        _ => "HTTP/1.1 404 NOT FOUND\r\n\r\nNot Found".to_string(),
+    }
+}
+
+/// Helper to ensure the path doesn't try to escape the cgi-bin directory
+fn is_path_safe(path_str: &str) -> bool {
+    let path = Path::new(path_str);
+    
+    // 1. Prevent empty paths or absolute paths (on the OS level)
+    if path_str.is_empty() || path.is_absolute() {
+        return false;
+    }
+
+    // 2. Iterate through components and block "ParentDir" (..) or "RootDir" (/)
+    for component in path.components() {
+        match component {
+            Component::Normal(_) => continue,
+            Component::CurDir => continue, // "." is okay
+            _ => return false, // Blocks "..", "/", and Windows prefixes
+        }
+    }
+    true
+}
+
 // --- Connection Handlers ---
 
 async fn handle_tls_connection(
@@ -191,11 +276,13 @@ async fn handle_tls_connection(
         info
     });
 
+    // Use the new router
+    let response = route_request(&request_info).await;
+
     let processing_time = start_time.elapsed().as_millis();
     let request_log = create_request_log(addr, "TLS", tls_version.as_deref(), cipher_suite.as_deref(), &request_info, raw_request, processing_time);
     log_request_details(&request_log);
 
-    let response = format!("HTTP/1.1 200 OK\r\nContent-Length: 13\r\n\r\nHello OpenSSL");
     stream.write_all(response.as_bytes()).await?;
     stream.shutdown().await?;
     Ok(())
@@ -209,12 +296,14 @@ async fn handle_tcp_connection(mut stream: TcpStream, addr: SocketAddr) -> Resul
 
     let raw_request = &buffer[..n];
     let request_info = parse_http_request(raw_request).unwrap_or_default(); // simplified
+    
+    // Use the new router
+    let response = route_request(&request_info).await;
 
     let request_log = create_request_log(addr, "TCP", None, None, &request_info, raw_request, start_time.elapsed().as_millis());
     log_request_details(&request_log);
 
-    let resp = "HTTP/1.1 200 OK\r\nContent-Length: 9\r\n\r\nHello TCP";
-    stream.write_all(resp.as_bytes()).await?;
+    stream.write_all(response.as_bytes()).await?;
     Ok(())
 }
 

@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+base64 = "0.22"
 openssl = { version = "0.10", features = [ "vendored" ] }
 tokio-openssl = "0.6"
 # Keep your existing dependencies
