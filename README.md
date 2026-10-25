@@ -58,35 +58,82 @@ was learned, including the addresses in the game executable where each piece of 
 | path | contents |
 |---|---|
 | `hsg6/server/` | Python HTTP servers: `ss.info`, the game API, the "real" API, app data, the admin page and the public page |
-| `hsg6/medius/`, `muis/`, `dme/`, `nat/` | config files for the [Horizon](https://github.com/Horizon-Private-Server/horizon-server) Medius servers (lobby, login, game worlds and NAT); the binaries are built from source, see below |
+| `hsg6/medius/`, `muis/`, `dme/`, `nat/` | config files for the [Horizon](https://github.com/Horizon-Private-Server/horizon-server) Medius servers (lobby, login, game worlds and NAT); `build.py` puts the built servers here |
+| `hsg6/thirdparty/horizon-server` | Horizon source (git submodule, pinned commit) |
+| `hsg6/build.py` | one-step setup: builds the patched Horizon servers and generates the game data |
 | `hsg6/docs/` | `PROTOCOL.md` (reversed protocol), `OPERATIONS.md` (running and hosting), `CHANGES.md` (third-party changes) and `horizon-server.patch` |
 | `hsg6/supervisor.py`, `*.bat` | start, stop and keep all servers running |
 | `src/`, `Cargo.toml` | an earlier Rust prototype that only logged the game's requests; not needed to run the server |
 
 ## Building
 
-The repo won't run as downloaded. It contains the HSG6 server code, but not:
-- **The game-derived data files.** Step 1 extracts them from your own copy of the game.
-- **The Medius server programs.** Step 2 builds them from Horizon's source.
-
-The start scripts can only launch what's there. If you skip step 2, the HTTP server comes up but
-the Medius servers fail to start, so lobbies won't work.
+The repo includes the HSG6 server code and, as a git submodule, the source of the Medius servers
+it uses ([Horizon](https://github.com/Horizon-Private-Server/horizon-server), pinned to the commit
+the patch was made against). It doesn't include programs ready to run, or the data files that
+come from the game. `build.py` sets up both in one step.
 
 ### Requirements
 
 - A legally obtained copy of the game (**NPUA80864**, updated to **v01.03**) installed in
   RPCS3. Several data files are extracted from it rather than shipped here.
 - Python 3.10 or newer (standard library only).
-- The [.NET 10 SDK](https://dotnet.microsoft.com/download) and git, to build the Horizon servers.
+- The [.NET 10 SDK](https://dotnet.microsoft.com/download) and [git](https://git-scm.com/), to
+  build the Medius servers.
 - Windows. The `.bat` scripts and the supervisor assume it, but the Python and .NET parts are
   cross-platform.
 
-### 1. Generate the game-derived files
+### 1. Get the code
+
+```sh
+git clone --recursive -b hsg6-server https://github.com/Ninetime/gravitygolf.git
+```
+
+A plain clone or GitHub's "Download ZIP" also works: `build.py` fetches Horizon itself if the
+submodule is missing.
+
+### 2. Build
 
 `<USRDIR>` is the game's folder inside RPCS3, for example
 `D:/Games/rpcs3/dev_hdd0/game/NPUA80864/USRDIR`.
 
 ```sh
+cd gravitygolf/hsg6
+python build.py --usrdir <USRDIR>
+```
+
+This does the following:
+1. **Medius servers:** fetches Horizon into `hsg6/thirdparty/horizon-server` and applies
+   `docs/horizon-server.patch`, the fixes for this game's older network library (details in
+   `hsg6/docs/CHANGES.md` §1). It then builds the four servers and copies them into `muis/`,
+   `medius/`, `dme/` and `nat/`. The config files already in those folders are kept.
+2. **Game data:** extracts the game-derived files from your copy of the game, then builds
+   `appdata.xb` and `ss.info`.
+
+It's safe to run again, for example after updating:
+- `python build.py` rebuilds only the servers.
+- `python build.py --skip-horizon --usrdir <USRDIR>` redoes only the game data.
+
+<details>
+<summary>Doing it by hand instead</summary>
+
+```sh
+# Medius servers
+cd hsg6/thirdparty/horizon-server            # git submodule update --init, if it's empty
+git apply ../../docs/horizon-server.patch
+dotnet build Server.UniverseInformation/Server.UniverseInformation.csproj -c Release
+dotnet build Server.Medius/Server.Medius.csproj -c Release
+dotnet build Server.Dme/Server.Dme.csproj -c Release
+dotnet build Server.NAT/Server.NAT.csproj -c Release
+```
+
+Copy each project's `bin/Release/net10.0/*` into its folder:
+- `Server.UniverseInformation` goes to `hsg6/muis/`
+- `Server.Medius` goes to `hsg6/medius/`
+- `Server.Dme` goes to `hsg6/dme/`
+- `Server.NAT` goes to `hsg6/nat/`
+
+```sh
+# Game data
 cd hsg6/server
 python tools/extract_appdata.py <USRDIR>       # rule table, chat text, easy-chat phrase list
 python tools/extract_gamedata.py <USRDIR>      # course / rule / club names for the admin page
@@ -96,33 +143,7 @@ python make_appdata.py                          # builds www/hsg6ps3/real/files/
 python make_ssinfo.py                           # builds www/hsg6ps3/ss.info
 ```
 
-### 2. Build the Horizon Medius servers
-
-The Medius servers are [Horizon Private Server](https://github.com/Horizon-Private-Server/horizon-server)
-(MIT License, © 2020 Daniel Gerendasy and the Horizon contributors). This repo doesn't include
-Horizon itself. You build it from upstream, with a patch for this game's older network library
-(details in `hsg6/docs/CHANGES.md` §1):
-
-```sh
-git clone https://github.com/Horizon-Private-Server/horizon-server hsg6/thirdparty/horizon-server
-cd hsg6/thirdparty/horizon-server
-git checkout b1a0d0398f58b2d2b72ffc122053e788e794185a
-git apply ../../docs/horizon-server.patch
-
-dotnet build Server.UniverseInformation/Server.UniverseInformation.csproj -c Release
-dotnet build Server.Medius/Server.Medius.csproj -c Release
-dotnet build Server.Dme/Server.Dme.csproj -c Release
-dotnet build Server.NAT/Server.NAT.csproj -c Release
-```
-
-Copy each project's `bin/Release/net10.0/*` into the matching folder:
-- `Server.UniverseInformation` goes to `hsg6/muis/`
-- `Server.Medius` goes to `hsg6/medius/`
-- `Server.Dme` goes to `hsg6/dme/`
-- `Server.NAT` goes to `hsg6/nat/`
-
-Keep the `*.json` config files that are already in those folders. Don't let the build's own copies
-overwrite them.
+</details>
 
 ### 3. Run
 

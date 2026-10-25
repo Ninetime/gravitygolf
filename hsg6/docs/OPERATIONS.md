@@ -187,18 +187,21 @@ in the header). The 3-minute delay also blurs exactly when someone came online.
 
 ## 8. Rebuilding from a clean checkout
 
-1. Install the game, dump `EBOOT.elf` if you need to analyse it.
-2. `cd server && python tools/extract_appdata.py <USRDIR>` (Rule_Rule.txt, chat text, comment
-   list), `python tools/extract_gamedata.py <USRDIR>`, `python tools/extract_admin_images.py <USRDIR>`
-   (admin/public page images), then `python make_appdata.py` and
-   `python make_ssinfo.py`. `online_grade.csv`, `online_avatar_action.csv`, `online_item.csv` and
-   `Rank_AutoHandi.txt` are hand-written (see PROTOCOL.md §4.2). The lobby CSVs come from
-   settings.json (save once on the admin page, or call `settings.write_lobby_csvs()`).
-3. Build Horizon with the patch (CHANGES.md §1) and copy the outputs into `muis/`, `medius/`,
-   `dme/`, `nat/`, next to the tracked json configs (don't overwrite them with the build's own).
-4. Start everything (`start_background.bat`), open the admin page from the server machine to
-   create the first admin account, then set news, rule sets and the lobby layout. Until the first
-   save, `settings.py` defaults are used and `data/settings.json` doesn't exist.
+1. Install the game. Dump `EBOOT.elf` if you need to analyse it.
+2. Run `python build.py --usrdir <USRDIR>` in this folder. It does the following:
+   - fetches the Horizon submodule (or clones it for a zip download) and applies
+     `docs/horizon-server.patch`
+   - builds MUIS, Medius, DME and NAT into `muis/`, `medius/`, `dme/`, `nat/`, next to the tracked
+     json configs
+   - runs `tools/extract_appdata.py`, `tools/extract_gamedata.py`, `tools/extract_admin_images.py`
+     and `make_appdata.py` / `make_ssinfo.py`; the lobby CSVs are written from the defaults if
+     missing
+   - `--skip-horizon` does only the game-data part; leaving out `--usrdir` does only Horizon
+3. `online_grade.csv`, `online_avatar_action.csv`, `online_item.csv` and `Rank_AutoHandi.txt`
+   are hand-written and tracked (see PROTOCOL.md §4.2).
+4. Start everything (`start_background.bat`). Open the admin page from the server machine to
+   create the first admin account, then set news, rule sets and the lobby layout. Until the
+   first save, `settings.py` defaults are used and `data/settings.json` doesn't exist.
 
 ## 9. Troubleshooting
 

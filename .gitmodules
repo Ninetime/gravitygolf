@@ -1,0 +1,4 @@
+[submodule "hsg6/thirdparty/horizon-server"]
+	path = hsg6/thirdparty/horizon-server
+	url = https://github.com/Horizon-Private-Server/horizon-server.git
+	ignore = dirty

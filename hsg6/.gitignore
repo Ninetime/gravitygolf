@@ -18,8 +18,6 @@ nat/*
 *.deps.json
 *.runtimeconfig.json
 
-# Upstream clone; docs/horizon-server.patch holds our changes
-thirdparty/
 
 # Extracted from the game or generated (see docs/OPERATIONS.md "Rebuilding from a clean checkout")
 server/admin/img/

@@ -11,10 +11,16 @@ original code and is described in [PROTOCOL.md](PROTOCOL.md) and [OPERATIONS.md]
   [`licenses/horizon-server-LICENSE.txt`](licenses/horizon-server-LICENSE.txt) and applies to the
   Horizon-derived parts of the patch and of the json config files.
 - Base commit: `b1a0d0398f58b2d2b72ffc122053e788e794185a` ("Merge pull request #38 … dme-improvements")
-- Full diff: [`horizon-server.patch`](horizon-server.patch). Apply with
-  `git checkout b1a0d03 && git apply docs/horizon-server.patch` (new files are included).
-- Build: `dotnet build <project>.csproj -c Release` (built with .NET SDK 10). Copy
-  `bin/Release/net10.0/*` into `medius/`, `muis/`, `dme/`, `nat/`.
+- Source: git submodule `thirdparty/horizon-server`, pinned to the base commit.
+- Full diff: [`horizon-server.patch`](horizon-server.patch) (new files are included). The submodule
+  stays at the unmodified upstream commit, and the patch is applied to its working tree at build
+  time (`ignore = dirty` in `.gitmodules` keeps that out of `git status`).
+- Build: `python build.py` applies the patch, runs `dotnet build <project>.csproj -c Release`
+  (.NET SDK 10) and copies `bin/Release/net10.0/*` into `medius/`, `muis/`, `dme/`, `nat/`.
+  To do it by hand: `git apply docs/horizon-server.patch` inside the submodule, then the same
+  build and copy.
+- To move to a newer Horizon: update the submodule, re-create the patch against it (`git diff`
+  inside the submodule), and change `HORIZON_COMMIT` in `build.py`.
 
 All game-specific behaviour is keyed on application id **24224** (HSG6), so other titles keep
 Horizon's default behaviour.
