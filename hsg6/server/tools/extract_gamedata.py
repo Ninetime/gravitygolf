@@ -84,6 +84,7 @@ def main(usrdir):
         "characters": opts(0x57, 0x2e),
     }
     out = os.path.join(HERE, "data", "gamedata.json")
+    os.makedirs(os.path.dirname(out), exist_ok=True)
     json.dump(data, open(out, "w", encoding="utf-8"), indent=1, ensure_ascii=False)
     print(out, {k: len(v) for k, v in data.items()})
 

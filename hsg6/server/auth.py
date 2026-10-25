@@ -44,6 +44,7 @@ def _load_sessions():
 
 def _save_sessions():
     """Caller holds _lock."""
+    os.makedirs(os.path.dirname(SESSION_FILE), exist_ok=True)
     tmp = SESSION_FILE + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(_sessions, f)
@@ -68,6 +69,7 @@ def _load_accounts():
 
 
 def _save_accounts(users):
+    os.makedirs(os.path.dirname(AUTH_FILE), exist_ok=True)
     tmp = AUTH_FILE + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump({"users": users}, f, indent=1)

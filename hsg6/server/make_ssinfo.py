@@ -39,6 +39,7 @@ def build():
 if __name__ == "__main__":
     out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "www", "hsg6ps3", "ss.info")
     data = build()
+    os.makedirs(os.path.dirname(out), exist_ok=True)
     open(out, "wb").write(data)
     print(out, len(data))
     print(base64.b64decode(data).decode())

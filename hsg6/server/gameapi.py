@@ -375,6 +375,7 @@ def _store_point_ranking(req):
     except (OSError, ValueError):
         db = {}
     db[_player(req)] = {"v4500": v4500.hex(), "stats": stats}
+    os.makedirs(os.path.dirname(_STATS), exist_ok=True)
     json.dump(db, open(_STATS, "w"), indent=1)
 
 

@@ -16,5 +16,6 @@ if __name__ == "__main__":
     for n in sorted(os.listdir(SRC)):
         files[n] = open(os.path.join(SRC, n), "rb").read()
     data = pack(files, compress=True)
+    os.makedirs(os.path.dirname(OUT), exist_ok=True)
     open(OUT, "wb").write(data)
     print(OUT, len(data), "files:", list(files))

@@ -29,7 +29,7 @@ Horizon's default behaviour.
 | `Server.Medius/StatusApi.cs` (new), `Program.cs`, `Config/ServerSettings.cs` | Read-only JSON endpoint `GET http://127.0.0.1:<StatusPort>/status` (default 10081; `"StatusPort": 0` disables it). Lists clients and games. | Used by the admin page. Plain `TcpListener`, so no URL ACL or admin rights are needed. |
 | `Server.NAT/Program.cs` | `await Task.Delay(-1)` after `Start()`. | Upstream `Main` returned as soon as the UDP socket was bound, so the NAT server exited immediately. |
 
-Configuration files (not in git) live next to each binary: `muis/muis.json`, `medius/medius.json`,
+Configuration files (tracked in git as templates) live next to each binary: `muis/muis.json`, `medius/medius.json`,
 `dme/dme.json`, `nat/nat.json`. See [OPERATIONS.md](OPERATIONS.md#configuration-files).
 
 ## 2. RPCS3 patch file (`<rpcs3>/patches/NPUA80864_patch.yml`)
