@@ -428,7 +428,7 @@ lobby.csv        <n>,<map>,<name>,<flag>,<capacity>  one block per CLUBHOUSE (sh
 * Game-side state for debugging: net object `*(*(0xd956e4))`, state at `+0x280`, join status `+0x804`;
   lobby manager `0x554d9c` (state `+8`); NetConnect `0x7fe494` → library `0x95834c`; event listener
   `0x5532d4`.
-* **Friends List** uses `sceNpFriendlist` (RPCS3 limitation, see CHANGES.md §5). **Player Search** uses
+* **Friends List** uses `sceNpFriendlist` (RPCS3 limitation, see [Third-Party Changes](Third-Party-Changes.md) §5). **Player Search** uses
   `MediusFindPlayer` by account name.
 
 ---

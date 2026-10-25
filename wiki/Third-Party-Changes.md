@@ -1,18 +1,19 @@
 # Changes to third-party code and game files
 
 This lists every change made outside the HSG6 server's own code (`server/`). The server itself is
-original code and is described in [PROTOCOL.md](PROTOCOL.md) and [OPERATIONS.md](OPERATIONS.md).
+original code and is described in [Protocol](Protocol.md) and [Operations](Operations.md). Paths
+are relative to `hsg6/`.
 
 ## 1. Horizon Medius server (`thirdparty/horizon-server`)
 
 - Upstream: https://github.com/Horizon-Private-Server/horizon-server, by Daniel Gerendasy and the
   Horizon contributors
 - License: MIT (© 2020 Daniel Gerendasy). The full notice is in
-  [`licenses/horizon-server-LICENSE.txt`](licenses/horizon-server-LICENSE.txt) and applies to the
+  [`docs/licenses/horizon-server-LICENSE.txt`](../hsg6/docs/licenses/horizon-server-LICENSE.txt) and applies to the
   Horizon-derived parts of the patch and of the json config files.
 - Base commit: `b1a0d0398f58b2d2b72ffc122053e788e794185a` ("Merge pull request #38 … dme-improvements")
 - Source: git submodule `thirdparty/horizon-server`, pinned to the base commit.
-- Full diff: [`horizon-server.patch`](horizon-server.patch) (new files are included). The submodule
+- Full diff: [`docs/horizon-server.patch`](../hsg6/docs/horizon-server.patch) (new files are included). The submodule
   stays at the unmodified upstream commit, and the patch is applied to its working tree at build
   time (`ignore = dirty` in `.gitmodules` keeps that out of `git status`).
 - Build: `python build.py` applies the patch, runs `dotnet build <project>.csproj -c Release`
@@ -40,21 +41,13 @@ Horizon's default behaviour.
 | `Server.NAT/Program.cs` | `await Task.Delay(-1)` after `Start()`. | Upstream `Main` returned as soon as the UDP socket was bound, so the NAT server exited immediately. |
 
 Configuration files (tracked in git as templates) live next to each binary: `muis/muis.json`, `medius/medius.json`,
-`dme/dme.json`, `nat/nat.json`. See [OPERATIONS.md](OPERATIONS.md#configuration-files).
+`dme/dme.json`, `nat/nat.json`. See [Operations](Operations.md#4-configuration-files).
 
-## 2. RPCS3 patch file (`<rpcs3>/patches/NPUA80864_patch.yml`)
+## 2. RPCS3 game patch ("Server patching")
 
-Owned by the user (author "Ninetime"); not changed by this project, except for a temporary
-debug line that has since been removed. The relevant line redirects the game's
-bootstrap URL from `https://cmnap.scej-online.jp:18443/hsg6ps3/ss.info` to plain HTTP port 18000:
-
-```yaml
-PPU-cdf4e1c581ae975cd6943427043cd527da6937a4:     # NPUA80864 v01.03
-  "Server patching":
-    ...
-    Patch:
-      - [utf8, 0x00bfd8c0, "http://cmnap.scej-online.jp:18000/hsg6ps3/ss.info\0"]
-```
+The game patch is published in RPCS3's patch database, so it appears in RPCS3's Patch Manager. It
+redirects the game's bootstrap URL from `https://cmnap.scej-online.jp:18443/hsg6ps3/ss.info` to
+plain HTTP port 18000. The current patch entry is on the [RPCS3 Patch](RPCS3-Patch.md) page.
 
 ## 3. RPCS3 per-game configuration
 

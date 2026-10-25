@@ -1,5 +1,7 @@
 # Running and managing the HSG6 server
 
+Paths are relative to `hsg6/`.
+
 ## 1. What runs where
 
 | process | folder | ports | purpose |
@@ -28,10 +30,8 @@ Requirements: Python 3.10+ (no extra packages), .NET 10 runtime, the `bf_tables.
 ## 2. Client setup (each player, RPCS3)
 
 1. Game: **NPUA80864**, updated to **v01.03**.
-2. Patch (`patches/NPUA80864_patch.yml`, enable "Server patching" in the Patch Manager):
-   ```yaml
-   - [utf8, 0x00bfd8c0, "http://cmnap.scej-online.jp:18000/hsg6ps3/ss.info\0"]
-   ```
+2. Patch: in RPCS3's Patch Manager, enable **Server patching** for the game. It comes from RPCS3's
+   patch database; see [RPCS3 Patch](RPCS3-Patch.md).
 3. Custom game config → Network → **IP swap list**: `cmnap.scej-online.jp=<server IP>`.
 4. Network: connected, PSN = RPCN (any account; the RPCN name becomes the in-game name).
 5. The Medius host the game uses comes from `ss.info` (`HSG6_MEDIUS_HOST`, below), not from the IP swap.
@@ -108,7 +108,7 @@ Served by the HTTP process. **Login required.**
   **New** asks for a name and starts from the default values; **Reset to default** restores the
   shown rule set; **Delete** removes it (not allowed while a day uses it). Fields: course, holes, tee,
   special rules 1–4, character/club/ball restriction, and (behind "Show advanced", off by default)
-  raw unknown regulation bytes (PROTOCOL.md §2.5). The badge shows whether it
+  raw unknown regulation bytes ([Protocol](Protocol.md) §2.5). The badge shows whether it
   will be Official (special rules 1 and 2 must be official rules). Course 0 (Practice) is rejected
   because it crashes the game.
 * **Reset to default**: "Reset all rule sets to default" (Rule Sets tab), "reset to default" on a
@@ -188,7 +188,7 @@ in the header). The 3-minute delay also blurs exactly when someone came online.
 ## 8. Rebuilding from a clean checkout
 
 1. Install the game. Dump `EBOOT.elf` if you need to analyse it.
-2. Run `python build.py --usrdir <USRDIR>` in this folder. It does the following:
+2. Run `python build.py --usrdir <USRDIR>` in `hsg6/` (see [Building](Building.md)). It does the following:
    - fetches the Horizon submodule (or clones it for a zip download) and applies
      `docs/horizon-server.patch`
    - builds MUIS, Medius, DME and NAT into `muis/`, `medius/`, `dme/`, `nat/`, next to the tracked
@@ -198,7 +198,7 @@ in the header). The 3-minute delay also blurs exactly when someone came online.
      missing
    - `--skip-horizon` does only the game-data part; leaving out `--usrdir` does only Horizon
 3. `online_grade.csv`, `online_avatar_action.csv`, `online_item.csv` and `Rank_AutoHandi.txt`
-   are hand-written and tracked (see PROTOCOL.md §4.2).
+   are hand-written and tracked (see [Protocol](Protocol.md) §4.2).
 4. Start everything (`start_background.bat`). Open the admin page from the server machine to
    create the first admin account, then set news, rule sets and the lobby layout. Until the
    first save, `settings.py` defaults are used and `data/settings.json` doesn't exist.
@@ -208,10 +208,10 @@ in the header). The 3-minute delay also blurs exactly when someone came online.
 | symptom | likely cause |
 |---|---|
 | "older version of the game" | `daily_ver/rank_ver/lobby_ver` in ss.info ≠ 1030 |
-| `T-000000` when going online | `appdata.xb` missing a required file (PROTOCOL.md §4.2) |
+| `T-000000` when going online | `appdata.xb` missing a required file ([Protocol](Protocol.md) §4.2) |
 | `R…` error | game API handler failed; check the HTTP window / `logs/` |
-| `G…` error or "Communication error" in the lobby | Medius/DME not running, or a Medius reply layout mismatch (PROTOCOL.md §5) |
+| `G…` error or "Communication error" in the lobby | Medius/DME not running, or a Medius reply layout mismatch ([Protocol](Protocol.md) §5) |
 | crash on "Entering the lobby" | lobby CSVs missing or > 2 clubhouses; map not installed |
 | Daily round crashes on load | course 0 or missing `Rule_Rule.txt` |
-| Friends List hangs | RPCS3 `sceNpFriendlist` not implemented (CHANGES.md §5) |
+| Friends List hangs | RPCS3 `sceNpFriendlist` not implemented ([Third-Party Changes](Third-Party-Changes.md) §5) |
 | Status page "Medius status unavailable" | Medius not running or `StatusPort` disabled |

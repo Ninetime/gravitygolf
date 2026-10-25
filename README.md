@@ -33,149 +33,37 @@ play through the [RPCS3](https://rpcs3.net) emulator.
   upcoming schedule. It shows no online names or locations.
 
 Known gap: the in-lobby **Friends List** softlocks. That is an RPCS3 bug (`sceNpFriendlist` never
-calls its result handler), not a server bug. See `hsg6/docs/CHANGES.md` §5.
+calls its result handler), not a server bug. See
+[Third-Party Changes](wiki/Third-Party-Changes.md) §5.
 
-## How it was made
-
-Nothing about the original protocol was documented, so it was all **reverse engineered** from the
-game:
-- static analysis of the game executable in Ghidra
-- live memory inspection of the running game through RPCS3's PINE interface
-- logging every request the game sends
-
-The work was done **with the assistance of AI (Claude, by Anthropic)**, which helped with:
-- disassembly and decompilation analysis
-- working out the encryption and message formats
-- writing and testing the server code
-- debugging against the running game
-- writing the documentation
-
-Findings were checked against the real game at each step. `hsg6/docs/PROTOCOL.md` records what
-was learned, including the addresses in the game executable where each piece of behaviour lives.
-
-## Layout
-
-| path | contents |
-|---|---|
-| `hsg6/server/` | Python HTTP servers: `ss.info`, the game API, the "real" API, app data, the admin page and the public page |
-| `hsg6/medius/`, `muis/`, `dme/`, `nat/` | config files for the [Horizon](https://github.com/Horizon-Private-Server/horizon-server) Medius servers (lobby, login, game worlds and NAT); `build.py` puts the built servers here |
-| `hsg6/thirdparty/horizon-server` | Horizon source (git submodule, pinned commit) |
-| `hsg6/build.py` | one-step setup: builds the patched Horizon servers and generates the game data |
-| `hsg6/docs/` | `PROTOCOL.md` (reversed protocol), `OPERATIONS.md` (running and hosting), `CHANGES.md` (third-party changes) and `horizon-server.patch` |
-| `hsg6/supervisor.py`, `*.bat` | start, stop and keep all servers running |
-| `src/`, `Cargo.toml` | an earlier Rust prototype that only logged the game's requests; not needed to run the server |
-
-## Building
-
-The repo includes the HSG6 server code and, as a git submodule, the source of the Medius servers
-it uses ([Horizon](https://github.com/Horizon-Private-Server/horizon-server), pinned to the commit
-the patch was made against). It doesn't include programs ready to run, or the data files that
-come from the game. `build.py` sets up both in one step.
-
-### Requirements
+## Requirements
 
 - A legally obtained copy of the game (**NPUA80864**, updated to **v01.03**) installed in
-  RPCS3. Several data files are extracted from it rather than shipped here.
+  [RPCS3](https://rpcs3.net). Some of the server's data files are extracted from it.
 - Python 3.10 or newer (standard library only).
 - The [.NET 10 SDK](https://dotnet.microsoft.com/download) and [git](https://git-scm.com/), to
   build the Medius servers.
 - Windows. The `.bat` scripts and the supervisor assume it, but the Python and .NET parts are
   cross-platform.
 
-### 1. Get the code
+With those in place, setup is a clone and one command:
 
 ```sh
 git clone --recursive -b hsg6-server https://github.com/Ninetime/gravitygolf.git
-```
-
-A plain clone or GitHub's "Download ZIP" also works: `build.py` fetches Horizon itself if the
-submodule is missing.
-
-### 2. Build
-
-`<USRDIR>` is the game's folder inside RPCS3, for example
-`D:/Games/rpcs3/dev_hdd0/game/NPUA80864/USRDIR`.
-
-```sh
 cd gravitygolf/hsg6
-python build.py --usrdir <USRDIR>
+python build.py --usrdir <path to NPUA80864/USRDIR>
+start_background.bat
 ```
 
-This does the following:
-1. **Medius servers:** fetches Horizon into `hsg6/thirdparty/horizon-server` and applies
-   `docs/horizon-server.patch`, the fixes for this game's older network library (details in
-   `hsg6/docs/CHANGES.md` §1). It then builds the four servers and copies them into `muis/`,
-   `medius/`, `dme/` and `nat/`. The config files already in those folders are kept.
-2. **Game data:** extracts the game-derived files from your copy of the game, then builds
-   `appdata.xb` and `ss.info`.
-
-It's safe to run again, for example after updating:
-- `python build.py` rebuilds only the servers.
-- `python build.py --skip-horizon --usrdir <USRDIR>` redoes only the game data.
-
-<details>
-<summary>Doing it by hand instead</summary>
-
-```sh
-# Medius servers
-cd hsg6/thirdparty/horizon-server            # git submodule update --init, if it's empty
-git apply ../../docs/horizon-server.patch
-dotnet build Server.UniverseInformation/Server.UniverseInformation.csproj -c Release
-dotnet build Server.Medius/Server.Medius.csproj -c Release
-dotnet build Server.Dme/Server.Dme.csproj -c Release
-dotnet build Server.NAT/Server.NAT.csproj -c Release
-```
-
-Copy each project's `bin/Release/net10.0/*` into its folder:
-- `Server.UniverseInformation` goes to `hsg6/muis/`
-- `Server.Medius` goes to `hsg6/medius/`
-- `Server.Dme` goes to `hsg6/dme/`
-- `Server.NAT` goes to `hsg6/nat/`
-
-```sh
-# Game data
-cd hsg6/server
-python tools/extract_appdata.py <USRDIR>       # rule table, chat text, easy-chat phrase list
-python tools/extract_gamedata.py <USRDIR>      # course / rule / club names for the admin page
-python tools/extract_admin_images.py <USRDIR>  # images for the admin and public pages
-python -c "import settings; settings.write_lobby_csvs()"   # default lobby layout
-python make_appdata.py                          # builds www/hsg6ps3/real/files/appdata.xb
-python make_ssinfo.py                           # builds www/hsg6ps3/ss.info
-```
-
-</details>
-
-### 3. Run
-
-```bat
-cd hsg6
-start_background.bat    &rem all servers, hidden, with auto-restart (stop_all.bat stops them)
-```
-
-You can use `start_all.bat` instead, which opens each server in its own console window.
-
-Then open the admin page at <http://127.0.0.1:18080/> on the server machine and create the first
-admin account. From there you can set the news, rule sets, daily schedule and lobby layout. Until
-you first save, built-in defaults are used. The public status page is at
-<http://127.0.0.1:18082/>.
+See **[Building](wiki/Building.md)** for the full instructions, what the build does, and first-run
+setup.
 
 ## Connecting with RPCS3
 
-1. Add this to `patches/NPUA80864_patch.yml` and enable it in the Patch Manager. It points the
-   game at plain HTTP on port 18000. If the file already exists, add only the `PPU-…` entry:
-   ```yaml
-   Version: 1.2
-
-   PPU-cdf4e1c581ae975cd6943427043cd527da6937a4:     # NPUA80864 v01.03
-     "Server patching":
-       Games:
-         "Everybody's Golf":
-           NPUA80864: [01.03]
-       Author: "Ninetime"
-       Patch Version: 1.0
-       Patch:
-         - [utf8, 0x00bfd8c0, "http://cmnap.scej-online.jp:18000/hsg6ps3/ss.info\0"]
-   ```
+1. In RPCS3, open **Manage → Game Patches** and enable **Server patching** for *Everybody's Golf 6
+   / Hot Shots Golf: World Invitational*. It comes from RPCS3's patch database; if it isn't
+   listed, click **Download latest patches**. See [RPCS3 Patch](wiki/RPCS3-Patch.md) for what it
+   does and the current entry.
 2. In the game's custom configuration, under Network → **IP swap list**, add
    `cmnap.scej-online.jp=<server IP>`. Use `127.0.0.1` if the server runs on the same PC.
 3. Set Network to Connected and PSN to RPCN. Your RPCN name becomes your in-game name.
@@ -189,8 +77,19 @@ To host for players on other machines:
   `dme/dme.json`.
 - Forward the game ports.
 
-`hsg6/docs/OPERATIONS.md` §3 has the full list. It also covers which ports must **not** be
+[Operations](wiki/Operations.md) §3 has the full list. It also covers which ports must **not** be
 exposed, the admin page's security model, the data files to back up, and troubleshooting.
+
+## Documentation
+
+The [wiki](wiki/Home.md) has the rest:
+- [Building](wiki/Building.md)
+- [RPCS3 Patch](wiki/RPCS3-Patch.md)
+- [Operations](wiki/Operations.md)
+- [Protocol](wiki/Protocol.md), the reverse-engineered protocol
+- [Third-Party Changes](wiki/Third-Party-Changes.md)
+- [How It Was Made](wiki/How-It-Was-Made.md), including the AI assistance
+- [Layout](wiki/Layout.md)
 
 ## License
 
