@@ -7,7 +7,7 @@ Usage: python build.py [--usrdir USRDIR] [--skip-horizon]
                     and ss.info. Without it only the Horizon servers are built.
   --skip-horizon    only do the --usrdir step.
 
-Horizon steps (see wiki/Third-Party-Changes.md section 1):
+Horizon steps (see the Third-Party Changes wiki page, section 1):
   1. fetch thirdparty/horizon-server at HORIZON_COMMIT (git submodule; plain clone for zip downloads)
   2. apply docs/horizon-server.patch (skipped when already applied)
   3. dotnet build each server and copy its output into muis/, medius/, dme/, nat/.

@@ -34,7 +34,7 @@ play through the [RPCS3](https://rpcs3.net) emulator.
 
 Known gap: the in-lobby **Friends List** softlocks. That is an RPCS3 bug (`sceNpFriendlist` never
 calls its result handler), not a server bug. See
-[Third-Party Changes](wiki/Third-Party-Changes.md) §5.
+[Third-Party Changes](https://github.com/Ninetime/gravitygolf/wiki/Third-Party-Changes) §5.
 
 ## Requirements
 
@@ -55,14 +55,14 @@ python build.py --usrdir <path to NPUA80864/USRDIR>
 start_background.bat
 ```
 
-See **[Building](wiki/Building.md)** for the full instructions, what the build does, and first-run
+See **[Building](https://github.com/Ninetime/gravitygolf/wiki/Building)** for the full instructions, what the build does, and first-run
 setup.
 
 ## Connecting with RPCS3
 
 1. In RPCS3, open **Manage → Game Patches** and enable **Server patching** for *Everybody's Golf 6
    / Hot Shots Golf: World Invitational*. It comes from RPCS3's patch database; if it isn't
-   listed, click **Download latest patches**. See [RPCS3 Patch](wiki/RPCS3-Patch.md) for what it
+   listed, click **Download latest patches**. See [RPCS3 Patch](https://github.com/Ninetime/gravitygolf/wiki/RPCS3-Patch) for what it
    does and the current entry.
 2. In the game's custom configuration, under Network → **IP swap list**, add
    `cmnap.scej-online.jp=<server IP>`. Use `127.0.0.1` if the server runs on the same PC.
@@ -77,19 +77,19 @@ To host for players on other machines:
   `dme/dme.json`.
 - Forward the game ports.
 
-[Operations](wiki/Operations.md) §3 has the full list. It also covers which ports must **not** be
+[Operations](https://github.com/Ninetime/gravitygolf/wiki/Operations) §3 has the full list. It also covers which ports must **not** be
 exposed, the admin page's security model, the data files to back up, and troubleshooting.
 
 ## Documentation
 
-The [wiki](wiki/Home.md) has the rest:
-- [Building](wiki/Building.md)
-- [RPCS3 Patch](wiki/RPCS3-Patch.md)
-- [Operations](wiki/Operations.md)
-- [Protocol](wiki/Protocol.md), the reverse-engineered protocol
-- [Third-Party Changes](wiki/Third-Party-Changes.md)
-- [How It Was Made](wiki/How-It-Was-Made.md), including the AI assistance
-- [Layout](wiki/Layout.md)
+The [wiki](https://github.com/Ninetime/gravitygolf/wiki) has the rest:
+- [Building](https://github.com/Ninetime/gravitygolf/wiki/Building)
+- [RPCS3 Patch](https://github.com/Ninetime/gravitygolf/wiki/RPCS3-Patch)
+- [Operations](https://github.com/Ninetime/gravitygolf/wiki/Operations)
+- [Protocol](https://github.com/Ninetime/gravitygolf/wiki/Protocol), the reverse-engineered protocol
+- [Third-Party Changes](https://github.com/Ninetime/gravitygolf/wiki/Third-Party-Changes)
+- [How It Was Made](https://github.com/Ninetime/gravitygolf/wiki/How-It-Was-Made), including the AI assistance
+- [Layout](https://github.com/Ninetime/gravitygolf/wiki/Layout)
 
 ## License
 

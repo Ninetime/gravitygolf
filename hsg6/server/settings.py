@@ -16,7 +16,7 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 PATH = os.path.join(ROOT, "data", "settings.json")
 _lock = threading.Lock()
 
-# Lobby limits enforced by the client tables (see wiki/Protocol.md, "Lobby layout CSVs").
+# Lobby limits enforced by the client tables (see the Protocol wiki page, "Lobby layout CSVs").
 MAX_CLUBS, MAX_FLOORS, MAX_LOBBIES = 2, 10, 20
 LOBBY_MAPS = [8, 9, 10, 11, 12, 13]  # xbdata/lobby/lobbyNN.xb shipped with the game
 
@@ -32,7 +32,7 @@ DEFAULT_RULESET = {
     "character": 255,       # +0x60 (255 = any)
     "club": 255,            # +0x61 (255 = any)
     "ball": 255,            # +0x62 (255 = any)
-    # Raw regulation bytes (see wiki/Protocol.md "Regulation fields traced in code"):
+    # Raw regulation bytes (see the Protocol wiki page "Regulation fields traced in code"):
     # b44[0] "tour" flag, u4e round random seed (0 = automatic per-day seed), b50_0_3[0] event format (0-5), b57 rule-manager
     # value (+1), b58_5b[1] (0x59) online advancement cut %, b58_5b[3] (0x5b) unknown gate;
     # the rest has no reader in the game. Kept at the values known to work.
@@ -180,7 +180,7 @@ def tournaments_for(date, data=None):
 
 def daily_seed(date, slot=1):
     """Round random seed (+0x4e, u16) for a day: stable for everyone on that date, different per day.
-    It drives the hole shuffle and the round RNG (wiki/Protocol.md). Never 0."""
+    It drives the hole shuffle and the round RNG (the Protocol wiki page). Never 0."""
     import hashlib
     h = hashlib.sha1(f"hsg6-daily-{date.isoformat()}-{slot}".encode()).digest()
     return int.from_bytes(h[:2], "big") or 1
@@ -215,7 +215,7 @@ def series_for(date, data=None):
 # ---------------- lobby layout -> appdata CSVs ----------------
 
 def write_lobby_csvs(data=None):
-    """club_house.csv / floor.csv / lobby.csv (no header, ',' separated; see wiki/Protocol.md)."""
+    """club_house.csv / floor.csv / lobby.csv (no header, ',' separated; see the Protocol wiki page)."""
     data = data or load()
     ad = os.path.join(ROOT, "appdata")
     clubs = data["lobby"]["clubhouses"]
